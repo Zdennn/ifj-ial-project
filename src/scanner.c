@@ -6,3 +6,6 @@
  * 
  * @author ...
  */
+#include "error.h"
+#include "token.h"
+#include "scanner.h"

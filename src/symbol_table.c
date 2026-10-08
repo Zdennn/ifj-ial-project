@@ -7,3 +7,6 @@
  * 
  * @author ...
  */
+#include "error.h"
+#include "token.h"
+#include "symbol_table.h"
