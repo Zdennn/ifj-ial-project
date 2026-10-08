@@ -2,7 +2,7 @@
  * @file error.h
  * @brief Definice chybových kódů - enum.
  * 
- * @author ...
+ * @author Zdeněk Michalec
  */
 
 typedef enum {
