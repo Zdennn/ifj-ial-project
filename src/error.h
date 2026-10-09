@@ -5,6 +5,9 @@
  * @author Zdeněk Michalec
  */
 
+#ifndef ERROR_H
+#define ERROR_H
+
 typedef enum {
     ERR_OK = 0, 
     ERR_LEX = 1, // Chyba v lexikální analýze (chybná struktura tokenu - aktuálního lexému, komentáře nebo odsazení).
@@ -17,3 +20,5 @@ typedef enum {
     ERR_SEM_OTHER = 10, // Ostatní sémantické chyby (např. nepovolený return, nevyčerpávající match nebo nulovýkrok rozsahu).
     ERR_INTERNAL = 99 // Interní chyba překladače neovlivněná vstupním programem (např. chyba alokace paměti).
 } ErrorCodes;
+
+#endif
