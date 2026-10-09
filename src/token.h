@@ -17,12 +17,17 @@
     TOKEN_DOUBLE,
     TOKEN_STRING,
 
+    TOKEN_DEF,
+    TOKEN_DO,
     TOKEN_WHILE,
     TOKEN_IF,
     TOKEN_ELSE,
     TOKEN_VAR,
     TOKEN_VAL,
-
+    TOKEN_IMPORT,
+    TOKEN_RETURN,
+    TOKEN_THEN,
+    TOKEN_UNIT,
 
     TOKEN_ROVNO, // = 
     TOKEN_PLUS, // + 
