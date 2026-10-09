@@ -107,7 +107,7 @@ int get_next_token(Token *token)
 
         while ((c = getchar()) != EOF && (isdigit(c) || c == '_' || c == '.'))
         {
-            if (len < 255)
+            if (len < 255 && c != '_')
                 buffer[len++] = c;
         }
         ungetc(c, stdin);
