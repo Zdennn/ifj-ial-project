@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -g -Isrc -MMD -MP
+CFLAGS = -Wall -Wextra -std=gnu11 -g -Isrc -MMD -MP
 
 SRC = $(wildcard src/*.c)
 OBJS = $(SRC:.c=.o)
