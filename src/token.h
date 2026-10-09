@@ -5,6 +5,9 @@
  * @author ...
  */
 
+#ifndef TOKEN_H
+#define TOKEN_H
+
  typedef enum {
     TOKEN_EOF, // Konec souboru
     TOKEN_EOL, // Konec řádku
@@ -13,6 +16,13 @@
     TOKEN_INT,
     TOKEN_DOUBLE,
     TOKEN_STRING,
+
+    TOKEN_WHILE,
+    TOKEN_IF,
+    TOKEN_ELSE,
+    TOKEN_VAR,
+    TOKEN_VAL,
+
 
     TOKEN_ROVNO, // = 
     TOKEN_PLUS, // + 
@@ -30,5 +40,13 @@
     TOKEN_NOT_EQ, // !=
     TOKEN_EQ, // ==
 
-
 } TokenType;
+
+typedef struct {
+    TokenType type;     // Typ tokenu
+    char* string;       // Textová hodnota
+    int int_val;        // Celočíselná hodnota
+    double double_val;  // Hodnota desetiného čísla
+} Token;
+
+#endif
