@@ -74,19 +74,19 @@ int get_next_token(Token *token)
             {
                 token->type = TOKEN_THEN;
             }
-            else if (strcmp(buffer, "int") == 0)
+            else if (strcmp(buffer, "Int") == 0)
             {
                 token->type = TOKEN_INT;
             }
-            else if (strcmp(buffer, "double") == 0)
+            else if (strcmp(buffer, "Double") == 0)
             {
                 token->type = TOKEN_DOUBLE;
             }
-            else if (strcmp(buffer, "string") == 0)
+            else if (strcmp(buffer, "String") == 0)
             {
                 token->type = TOKEN_STRING;
             }
-            else if (strcmp(buffer, "unit") == 0)
+            else if (strcmp(buffer, "Unit") == 0)
             {
                 token->type = TOKEN_UNIT;
             }
@@ -96,6 +96,8 @@ int get_next_token(Token *token)
                 token->string = strdup(buffer);
             }
             return ERR_OK;
+
+            //Podle rozšíření přidávat další tokeny
         }
     }
 
