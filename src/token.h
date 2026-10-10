@@ -1,14 +1,15 @@
 /**
  * @file token.h
  * @brief Definice datových typů pro lexikální jednotky (tokeny) - enum.
- * 
+ *
  * @author ...
  */
 
 #ifndef TOKEN_H
 #define TOKEN_H
 
- typedef enum {
+typedef enum
+{
     TOKEN_EOF, // Konec souboru
     TOKEN_EOL, // Konec řádku
 
@@ -29,29 +30,30 @@
     TOKEN_THEN,
     TOKEN_UNIT,
 
-    TOKEN_ROVNO, // = 
-    TOKEN_PLUS, // + 
-    TOKEN_MINUS, // - 
-    TOKEN_NAS, // * 
-    TOKEN_DEL, // / 
-    TOKEN_LZAVORKA, // ( 
-    TOKEN_PZAVORKA, // ) 
-    TOKEN_DVOJTEC, // : 
+    TOKEN_ROVNO,    // =
+    TOKEN_PLUS,     // +
+    TOKEN_MINUS,    // -
+    TOKEN_NAS,      // *
+    TOKEN_DEL,      // /
+    TOKEN_LZAVORKA, // (
+    TOKEN_PZAVORKA, // )
+    TOKEN_DVOJTEC,  // :
 
-    TOKEN_MENCI, // <
-    TOKEN_VETSI, // >
+    TOKEN_MENCI,       // <
+    TOKEN_VETSI,       // >
     TOKEN_MENSI_ROVNO, // <=
     TOKEN_VETSI_ROVNO, // >=
-    TOKEN_NE_ROVNO, // !=
-    TOKEN_ROVNO, // ==
+    TOKEN_NE_ROVNO,    // !=
+    TOKEN_ROVNO,       // ==
 
 } TokenType;
 
-typedef struct {
-    TokenType type;     // Typ tokenu
-    char* string;       // Textová hodnota
-    int int_val;        // Celočíselná hodnota
-    double double_val;  // Hodnota desetiného čísla
+typedef struct
+{
+    TokenType type;    // Typ tokenu
+    char *string;      // Textová hodnota
+    int int_val;       // Celočíselná hodnota
+    double double_val; // Hodnota desetiného čísla
 } Token;
 
 #endif

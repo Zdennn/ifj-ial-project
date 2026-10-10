@@ -6,13 +6,13 @@
  *
  * @author ...
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <string.h>
+#include "scanner.h"
 #include "error.h"
 #include "token.h"
-#include "scanner.h"
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 int get_next_token(Token *token)
 {
@@ -111,9 +111,12 @@ int get_next_token(Token *token)
                 buffer[len++] = c;
         }
         ungetc(c, stdin);
-        if (strchr(buffer, '.') != NULL){
+        if (strchr(buffer, '.') != NULL)
+        {
             strtod(buffer, NULL);
-        }else{
+        }
+        else
+        {
             strtol(buffer, NULL, 10);
         }
         return ERR_OK;
