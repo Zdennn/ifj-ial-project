@@ -165,7 +165,6 @@ int get_next_token(Token *token)
     }
 
     // Tokeny pro porovnávání
-    // TODO dodělat pro <=, >=, ==, !=
     if (c == '<')
     {
         token->type = TOKEN_MENCI;
@@ -176,6 +175,27 @@ int get_next_token(Token *token)
         token->type = TOKEN_VETSI;
         return ERR_OK;
     }
+    if (c == '<=')
+    {
+        token->type = TOKEN_MENSI_ROVNO;
+        return ERR_OK;
+    }
+    if (c == '>=')
+    {
+        token->type = TOKEN_VETSI_ROVNO;
+        return ERR_OK;
+    }
+    if (c == '==')
+    {
+        token->type = TOKEN_STEJNO;
+        return ERR_OK;
+    }
+    if (c == '!=')
+    {
+        token->type = TOKEN_NE_ROVNO;
+        return ERR_OK;
+    }
+    
 
     return ERR_LEX;
 
