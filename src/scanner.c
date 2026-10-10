@@ -97,7 +97,7 @@ int get_next_token(Token *token)
             }
             return ERR_OK;
 
-            //Podle rozšíření přidávat další tokeny
+            // Podle rozšíření přidávat další tokeny
         }
     }
 
@@ -127,7 +127,18 @@ int get_next_token(Token *token)
     // Tokeny pro operace
     if (c == '=')
     {
-        token->type = TOKEN_ROVNO;
+        if ((c = getchar()) != EOF && c == '=') // ==
+        {
+            token->type = TOKEN_STEJNO;
+        }
+        else
+        {
+            token->type = TOKEN_ROVNO;
+            if (c != EOF)
+            {
+                ungetc(c, stdin);
+            }
+        }
         return ERR_OK;
     }
     if (c == '+')
@@ -169,35 +180,49 @@ int get_next_token(Token *token)
     // Tokeny pro porovnávání
     if (c == '<')
     {
-        token->type = TOKEN_MENCI;
+        if ((c = getchar()) != EOF && c == '=') // <=
+        {
+            token->type = TOKEN_MENSI_ROVNO;
+        }
+        else
+        {
+            token->type = TOKEN_MENSI;
+            if (c != EOF)
+            {
+                ungetc(c, stdin);
+            }
+        }
         return ERR_OK;
     }
     if (c == '>')
     {
-        token->type = TOKEN_VETSI;
+        if ((c = getchar()) != EOF && c == '=') // >=
+        {
+            token->type = TOKEN_VETSI_ROVNO;
+        }
+        else
+        {
+            token->type = TOKEN_VETSI;
+            if (c != EOF)
+            {
+                ungetc(c, stdin);
+            }
+        }
         return ERR_OK;
     }
-    if (c == '<=')
+    if (c == '!')
     {
-        token->type = TOKEN_MENSI_ROVNO;
-        return ERR_OK;
+        if ((c = getchar()) != EOF && c == '=') // !=
+        {
+            token->type = TOKEN_NE_ROVNO;
+            return ERR_OK;
+        }
+        else if (c != EOF)
+        {
+            ungetc(c, stdin);
+            return ERR_LEX;
+        }
     }
-    if (c == '>=')
-    {
-        token->type = TOKEN_VETSI_ROVNO;
-        return ERR_OK;
-    }
-    if (c == '==')
-    {
-        token->type = TOKEN_STEJNO;
-        return ERR_OK;
-    }
-    if (c == '!=')
-    {
-        token->type = TOKEN_NE_ROVNO;
-        return ERR_OK;
-    }
-    
 
     return ERR_LEX;
 

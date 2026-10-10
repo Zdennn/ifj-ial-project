@@ -30,7 +30,7 @@ typedef enum
     TOKEN_THEN,
     TOKEN_UNIT,
 
-    //TODO duplikace tokenu rovno zatím oprava na STEJNO = x ==
+    // TODO duplikace tokenu rovno zatím oprava na STEJNO = x ==
     TOKEN_ROVNO,    // =
     TOKEN_PLUS,     // +
     TOKEN_MINUS,    // -
@@ -40,12 +40,12 @@ typedef enum
     TOKEN_PZAVORKA, // )
     TOKEN_DVOJTEC,  // :
 
-    TOKEN_MENCI,       // <
+    TOKEN_MENSI,       // <
     TOKEN_VETSI,       // >
     TOKEN_MENSI_ROVNO, // <=
     TOKEN_VETSI_ROVNO, // >=
     TOKEN_NE_ROVNO,    // !=
-    TOKEN_STEJNO,       // ==
+    TOKEN_STEJNO,      // ==
 
 } TokenType;
 
