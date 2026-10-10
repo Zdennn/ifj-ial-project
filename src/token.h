@@ -32,18 +32,18 @@
     TOKEN_ROVNO, // = 
     TOKEN_PLUS, // + 
     TOKEN_MINUS, // - 
-    TOKEN_MUL, // * 
-    TOKEN_DIV, // / 
+    TOKEN_NAS, // * 
+    TOKEN_DEL, // / 
     TOKEN_LZAVORKA, // ( 
     TOKEN_PZAVORKA, // ) 
-    TOKEN_COLON, // : 
+    TOKEN_DVOJTEC, // : 
 
-    TOKEN_LESS, // <
-    TOKEN_GREATER, // >
-    TOKEN_LESS_EQ, // <=
-    TOKEN_GREATER_EQ, // >=
-    TOKEN_NOT_EQ, // !=
-    TOKEN_EQ, // ==
+    TOKEN_MENCI, // <
+    TOKEN_VETSI, // >
+    TOKEN_MENSI_ROVNO, // <=
+    TOKEN_VETSI_ROVNO, // >=
+    TOKEN_NE_ROVNO, // !=
+    TOKEN_ROVNO, // ==
 
 } TokenType;
 

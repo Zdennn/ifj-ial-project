@@ -137,12 +137,12 @@ int get_next_token(Token *token)
     }
     if (c == '*')
     {
-        token->type = TOKEN_MUL;
+        token->type = TOKEN_NAS;
         return ERR_OK;
     }
     if (c == '/')
     {
-        token->type = TOKEN_DIV;
+        token->type = TOKEN_DEL;
         return ERR_OK;
     }
     if (c == '(')
@@ -157,7 +157,7 @@ int get_next_token(Token *token)
     }
     if (c == ':')
     {
-        token->type = TOKEN_COLON;
+        token->type = TOKEN_DVOJTEC;
         return ERR_OK;
     }
 
@@ -165,12 +165,12 @@ int get_next_token(Token *token)
     // TODO dodělat pro <=, >=, ==, !=
     if (c == '<')
     {
-        token->type = TOKEN_LESS;
+        token->type = TOKEN_MENCI;
         return ERR_OK;
     }
     if (c == '>')
     {
-        token->type = TOKEN_GREATER;
+        token->type = TOKEN_VETSI;
         return ERR_OK;
     }
 
