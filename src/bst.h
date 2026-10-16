@@ -11,13 +11,14 @@
 #ifndef BST_H
 #define BST_H
 
-#include "stdbool.h"
+#include <stdbool.h>
 
 typedef enum
 {
     BST_OK = 0,        // uzel úspěšně vložen
     BST_DUPLICATE = 1, // klíč už ve stromu existuje, strom nezměněn
-    BST_NO_MEMORY = 2  // selhala alokace paměti, strom nezměněn
+    BST_NO_MEMORY = 2, // selhala alokace paměti, strom nezměněn
+    BST_ERROR = 3      // neplatný vstup
 } bst_status_t;
 
 typedef struct bst_node
@@ -26,7 +27,7 @@ typedef struct bst_node
     struct bst_node *left;  // ukazatel na levý podstrom (menší klíč)
     struct bst_node *right; // ukazatel na pravý podstrom (větší klíč)
     void *data;             // ukazatel na data
-    int height;             // výška podstromu: list = 1, NULL = 0
+    int height;             // výška podstromu: list = 0, NULL = -1
 
 } bst_node_t;
 
@@ -38,7 +39,7 @@ typedef void (*bst_data_free_func)(void *); // uvolní data uzlu
 typedef struct bst
 {
     bst_node_t *root;             // kořen stromu
-    bst_cmp_func cmp;             // porovnávací funkce klíčů, povinné
+    bst_cmp_func cmp;             // porovnávací funkce klíčů, povinné (záporné číslo a<b, 0 a==b, kladné číslo a>b)
     bst_key_free_func key_free;   // uvolnění klíče, nepovinné
     bst_data_free_func data_free; // uvolnění dat, nepovinné
 } bst_t;
