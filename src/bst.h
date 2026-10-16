@@ -48,7 +48,7 @@ typedef struct bst
  * @brief Inicializace stromu
  *
  * @param tree ukazatel na strom
- * @param cmp funkce pro porovnání klíčů (povinná)
+ * @param cmp funkce pro porovnání klíčů (povinná, nesmí být NULL)
  * @param key_free funkce pro uvolnění klíče (může být NULL)
  * @param data_free funkce pro uvolnění dat (může být NULL)
  */
@@ -71,7 +71,7 @@ bst_status_t bst_insert(bst_t *tree, void *key, void *data);
  * @param key klíč hledaného uzlu
  * @return ukazatel na nalezený uzel, nebo NULL pokud neexistuje
  */
-bst_node_t *bst_search(bst_t *tree, void *key);
+bst_node_t *bst_search(bst_t *tree, const void *key);
 
 /**
  * @brief Odstranění uzlu pomocí klíče
@@ -80,7 +80,7 @@ bst_node_t *bst_search(bst_t *tree, void *key);
  * @param key klíč mazaného uzlu
  * @return true, pokud odstranění proběhne úspěšně, jinak false
  */
-bool bst_delete(bst_t *tree, void *key);
+bool bst_delete(bst_t *tree, const void *key);
 
 /**
  * @brief Zrušení celého stromu

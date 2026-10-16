@@ -2,12 +2,11 @@
  * @file bst.c
  * @brief Implementace AVL stromu.
  *
- *
+ * Obecný AVL strom (Výškově vyvážený binární vyhledávací strom)
  *
  * @author Jonáš Javůrek
  */
 #include "bst.h"
-#include <stdbool.h>
 #include <stdlib.h>
 
 void bst_init(bst_t *tree, bst_cmp_func cmp, bst_key_free_func key_free, bst_data_free_func data_free)
@@ -52,8 +51,8 @@ static int get_balance(bst_node_t *node)
     return get_height(node->left) - get_height(node->right);
 }
 
-// zjištění výšky
-static int height(bst_node_t *a, bst_node_t *b)
+// počítání výšky rodiče skrze potomky
+static int calc_height(bst_node_t *a, bst_node_t *b)
 {
     int a_h = get_height(a);
     int b_h = get_height(b);
@@ -73,8 +72,8 @@ static bst_node_t *rotate_right(bst_node_t *root)
     x->right = root;
     root->left = y;
 
-    root->height = height(root->left, root->right);
-    x->height = height(x->left, x->right);
+    root->height = calc_height(root->left, root->right);
+    x->height = calc_height(x->left, x->right);
 
     return x;
 }
@@ -88,8 +87,8 @@ static bst_node_t *rotate_left(bst_node_t *root)
     x->left = root;
     root->right = y;
 
-    root->height = height(root->left, root->right);
-    x->height = height(x->left, x->right);
+    root->height = calc_height(root->left, root->right);
+    x->height = calc_height(x->left, x->right);
 
     return x;
 }
@@ -121,12 +120,10 @@ static bst_node_t *insert_node(bst_t *tree, bst_node_t *node, void *key, void *d
         return node;
     }
 
-    if (*state == BST_NO_MEMORY)
-    {
+    if (*state != BST_OK)
         return node;
-    }
 
-    node->height = height(node->left, node->right);
+    node->height = calc_height(node->left, node->right);
 
     int balance = get_balance(node);
 
@@ -166,7 +163,7 @@ bst_status_t bst_insert(bst_t *tree, void *key, void *data)
     return state;
 }
 
-bst_node_t *bst_search(bst_t *tree, void *key)
+bst_node_t *bst_search(bst_t *tree, const void *key)
 {
     if (tree == NULL)
         return NULL;
@@ -198,7 +195,7 @@ static bst_node_t *find_min(bst_node_t *node)
 }
 
 // rekurze pro mazání node
-static bst_node_t *delete_node(bst_t *tree, bst_node_t *node, void *key, bool *deleted)
+static bst_node_t *delete_node(bst_t *tree, bst_node_t *node, const void *key, bool *deleted)
 {
     if (node == NULL)
     {
@@ -216,30 +213,30 @@ static bst_node_t *delete_node(bst_t *tree, bst_node_t *node, void *key, bool *d
         // 0/1 potomek
         if (node->left == NULL || node->right == NULL)
         {
-            bst_node_t *delete = NULL;
+            bst_node_t *to_free = NULL;
 
             if (node->left != NULL)
             {
-                delete = node;
+                to_free = node;
                 node = node->left;
             }
             else if (node->right != NULL)
             {
-                delete = node;
+                to_free = node;
                 node = node->right;
             }
             else
             {
-                delete = node;
+                to_free = node;
                 node = NULL;
             }
 
-            if (tree->key_free != NULL && delete->key != NULL)
-                tree->key_free(delete->key);
-            if (tree->data_free != NULL && delete->data != NULL)
-                tree->data_free(delete->data);
+            if (tree->key_free != NULL && to_free->key != NULL)
+                tree->key_free(to_free->key);
+            if (tree->data_free != NULL && to_free->data != NULL)
+                tree->data_free(to_free->data);
 
-            free(delete);
+            free(to_free);
             *deleted = true;
         }
         else
@@ -264,7 +261,7 @@ static bst_node_t *delete_node(bst_t *tree, bst_node_t *node, void *key, bool *d
     if (node == NULL)
         return NULL;
 
-    node->height = height(node->left, node->right);
+    node->height = calc_height(node->left, node->right);
 
     int balance = get_balance(node);
 
@@ -293,7 +290,7 @@ static bst_node_t *delete_node(bst_t *tree, bst_node_t *node, void *key, bool *d
     return node;
 }
 
-bool bst_delete(bst_t *tree, void *key)
+bool bst_delete(bst_t *tree, const void *key)
 {
     if (tree == NULL || tree->root == NULL || key == NULL)
         return false;
