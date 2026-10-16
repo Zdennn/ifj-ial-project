@@ -19,7 +19,7 @@ void bst_init(bst_t *tree, bst_cmp_func cmp, bst_key_free_func key_free, bst_dat
 }
 
 // alokace nové node
-bst_node_t *bst_new_node(void *key, void *data)
+static bst_node_t *bst_new_node(void *key, void *data)
 {
     bst_node_t *new_node = (bst_node_t *)malloc(sizeof(bst_node_t));
     if (new_node == NULL)
@@ -35,7 +35,7 @@ bst_node_t *bst_new_node(void *key, void *data)
 }
 
 // získání výšky
-int get_height(bst_node_t *node)
+static int get_height(bst_node_t *node)
 {
     if (node == NULL)
         return -1;
@@ -44,7 +44,7 @@ int get_height(bst_node_t *node)
 }
 
 // vypočtení balance pro výšky node
-int get_balance(bst_node_t *node)
+static int get_balance(bst_node_t *node)
 {
     if (node == NULL)
         return 0;
@@ -53,7 +53,7 @@ int get_balance(bst_node_t *node)
 }
 
 // zjištění výšky
-int height(bst_node_t *a, bst_node_t *b)
+static int height(bst_node_t *a, bst_node_t *b)
 {
     int a_h = get_height(a);
     int b_h = get_height(b);
@@ -65,7 +65,7 @@ int height(bst_node_t *a, bst_node_t *b)
 }
 
 // pravá rotace
-bst_node_t *rotate_right(bst_node_t *root)
+static bst_node_t *rotate_right(bst_node_t *root)
 {
     bst_node_t *x = root->left;
     bst_node_t *y = x->right;
@@ -80,7 +80,7 @@ bst_node_t *rotate_right(bst_node_t *root)
 }
 
 // levá rotace
-bst_node_t *rotate_left(bst_node_t *root)
+static bst_node_t *rotate_left(bst_node_t *root)
 {
     bst_node_t *x = root->right;
     bst_node_t *y = x->left;
@@ -95,7 +95,7 @@ bst_node_t *rotate_left(bst_node_t *root)
 }
 
 // rekurze pro vkládání node
-bst_node_t *insert_node(bst_t *tree, bst_node_t *node, void *key, void *data, bst_status_t *state)
+static bst_node_t *insert_node(bst_t *tree, bst_node_t *node, void *key, void *data, bst_status_t *state)
 {
 
     if (node == NULL)
@@ -189,7 +189,7 @@ bst_node_t *bst_search(bst_t *tree, void *key)
 }
 
 // nalezení nejmenšího uzlu v podstromu
-bst_node_t *find_min(bst_node_t *node)
+static bst_node_t *find_min(bst_node_t *node)
 {
     bst_node_t *actual = node;
     while (actual->left != NULL)
@@ -198,7 +198,7 @@ bst_node_t *find_min(bst_node_t *node)
 }
 
 // rekurze pro mazání node
-bst_node_t *delete_node(bst_t *tree, bst_node_t *node, void *key, bool *deleted)
+static bst_node_t *delete_node(bst_t *tree, bst_node_t *node, void *key, bool *deleted)
 {
     if (node == NULL)
     {
@@ -293,7 +293,6 @@ bst_node_t *delete_node(bst_t *tree, bst_node_t *node, void *key, bool *deleted)
     return node;
 }
 
-// rekurze pro mazání celého stromu
 bool bst_delete(bst_t *tree, void *key)
 {
     if (tree == NULL || tree->root == NULL || key == NULL)
@@ -304,7 +303,8 @@ bool bst_delete(bst_t *tree, void *key)
     return deleted;
 }
 
-void dispose_node(bst_node_t *node, bst_key_free_func key_free, bst_data_free_func data_free)
+// rekurze pro mazání celého stromu
+static void dispose_node(bst_node_t *node, bst_key_free_func key_free, bst_data_free_func data_free)
 {
     if (node == NULL)
         return;
