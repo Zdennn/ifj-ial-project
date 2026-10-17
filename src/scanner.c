@@ -119,14 +119,18 @@ int get_next_token(Token *token)
                 if (len < 255 && c != '_')
                     buffer[len++] = c;
             }
+            buffer[len] = '\0';
             ungetc(c, stdin);
+
             if (strchr(buffer, '.') != NULL)
             {
-                strtod(buffer, NULL);
+                token->type = TOKEN_DOUBLE_HOD;
+                token->double_val = strtod(buffer, NULL);
             }
             else
             {
-                strtol(buffer, NULL, 10);
+                token->type = TOKEN_INT_HOD;
+                token->int_val = (int)strtol(buffer, NULL, 10);
             }
             return ERR_OK;
         }
