@@ -14,9 +14,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+static char *str_dup(const char *src)
+{
+    int len = (int)strlen(src);
+    char *copy = (char *)malloc(len + 1);
+    if (copy == NULL)
+        return NULL;
+    memcpy(copy, src, len + 1);
+    return copy;
+}
+
 int get_next_token(Token *token)
 {
     int c;
+    token->double_val = 0;
+    token->int_val = 0;
+    token->string = NULL;
 
     while ((c = getchar()) != EOF)
     {
@@ -65,14 +78,17 @@ int get_next_token(Token *token)
                     if (prev_c == '/' && c == '*')
                     {
                         zanoreni++;
+                        prev_c = c;
                     }
                     else if (prev_c == '*' && c == '/')
                     {
                         zanoreni--;
                         prev_c = 0;
                     }
-
-                    prev_c = c;
+                    else
+                    {
+                        prev_c = c;
+                    }
                 }
 
                 if (radek == 1)
@@ -170,7 +186,12 @@ int get_next_token(Token *token)
             else
             {
                 token->type = TOKEN_ID;
-                token->string = strdup(buffer);
+                token->string = str_dup(buffer);
+
+                if (token->string == NULL)
+                {
+                    return ERR_INTERNAL;
+                }
             }
             return ERR_OK;
 
@@ -183,10 +204,11 @@ int get_next_token(Token *token)
             char buffer[256];
             int len = 0;
 
-            while ((c = getchar()) != EOF && (isdigit(c) || c == '_' || c == '.'))
+            while (c != EOF && (isdigit(c) || c == '_' || c == '.'))
             {
                 if (len < 255 && c != '_')
                     buffer[len++] = c;
+                c = getchar();
             }
             buffer[len] = '\0';
             ungetc(c, stdin);
@@ -222,11 +244,13 @@ int get_next_token(Token *token)
                 {
                     if (c == EOF)
                     {
+                        free(buffer);
                         return ERR_LEX;
                     }
 
                     if (c == '\n')
                     {
+                        free(buffer);
                         return ERR_LEX;
                     }
 
@@ -236,6 +260,7 @@ int get_next_token(Token *token)
 
                         if (c == EOF)
                         {
+                            free(buffer);
                             return ERR_LEX;
                         }
 
@@ -258,6 +283,7 @@ int get_next_token(Token *token)
                             break;
 
                         default:
+                            free(buffer);
                             return ERR_LEX;
                         }
                     }
@@ -268,6 +294,7 @@ int get_next_token(Token *token)
                             (char *)realloc(buffer, sizeof(char) * (size + 1)); // +1 kvuli ukončení řetezce \0
                         if (new_buff == NULL)
                         {
+                            free(buffer);
                             return ERR_INTERNAL;
                         }
                         buffer = new_buff;
@@ -287,104 +314,57 @@ int get_next_token(Token *token)
             {
                 if ((c = getchar()) == '"')
                 {
-                    if ((c = getchar()) == '"')
+
+                    while (1)
                     {
-                        char *buffer = (char *)malloc(sizeof(char) * 3); // *3 kvuli koncovemu znaku size=2
-                        if (buffer == NULL)
-                            return ERR_INTERNAL;
-
-                        int len = 0;
-                        int size = 2;
-
-                        while (1)
+                        c = getchar();
+                        if (c == EOF)
                         {
-                            c = getchar();
-                            if (c == EOF)
-                            {
-                                return ERR_LEX;
-                            }
-
-                            if (c == '\\')
-                            {
-                                c = getchar();
-
-                                if (c == EOF)
-                                {
-                                    return ERR_LEX;
-                                }
-
-                                if (c == '"')
-                                {
-                                    int c2 = getchar();
-                                    if (c2 == '"')
-                                    {
-                                        int c3 = getchar();
-                                        if (c3 == '"')
-                                        {
-                                            break;
-                                        }
-                                        ungetc(c3, stdin);
-                                    }
-                                    ungetc(c2, stdin);
-                                }
-
-                                switch (c)
-                                {
-                                case '\\':
-                                    c = '\\';
-                                    break;
-                                case '"':
-                                    c = '"';
-                                    break;
-                                case 'n':
-                                    c = '\n';
-                                    break;
-                                case 'r':
-                                    c = '\r';
-                                    break;
-                                case 't':
-                                    c = '\t';
-                                    break;
-
-                                default:
-                                    return ERR_LEX;
-                                }
-                            }
-                            if (len >= size)
-                            {
-                                size = size * 2;
-                                char *new_buff =
-                                    (char *)realloc(buffer, sizeof(char) * (size + 1)); // +1 kvuli ukončení řetezce \0
-                                if (new_buff == NULL)
-                                {
-                                    return ERR_INTERNAL;
-                                }
-                                buffer = new_buff;
-                            }
-
-                            buffer[len++] = c;
+                            free(buffer);
+                            return ERR_LEX;
                         }
 
-                        buffer[len] = '\0';
-                        token->type = TOKEN_STRING_HOD;
-                        token->string = buffer;
+                        if (c == '"')
+                        {
+                            int c2 = getchar();
+                            if (c2 == '"')
+                            {
+                                int c3 = getchar();
+                                if (c3 == '"')
+                                {
+                                    break;
+                                }
+                                ungetc(c3, stdin);
+                            }
+                            ungetc(c2, stdin);
+                        }
 
-                        return ERR_OK;
+                        if (len >= size)
+                        {
+                            size = size * 2;
+                            char *new_buff =
+                                (char *)realloc(buffer, sizeof(char) * (size + 1)); // +1 kvuli ukončení řetezce \0
+                            if (new_buff == NULL)
+                            {
+                                free(buffer);
+                                return ERR_INTERNAL;
+                            }
+                            buffer = new_buff;
+                        }
+
+                        buffer[len++] = c;
                     }
-                    else
-                    {
-                        ungetc(c, stdin);
-                    }
+
+                    buffer[len] = '\0';
+                    token->type = TOKEN_STRING_HOD;
+                    token->string = buffer;
+
+                    return ERR_OK;
                 }
                 else
                 {
                     ungetc(c, stdin);
                 }
-
-                char *buffer = (char *)malloc(sizeof(char) * 2);
-
-                if (buffer == NULL)
-                    return ERR_INTERNAL;
 
                 buffer[0] = '\0';
                 token->type = TOKEN_STRING_HOD;
@@ -446,6 +426,27 @@ int get_next_token(Token *token)
             token->type = TOKEN_DVOJTEC;
             return ERR_OK;
         }
+        if (c == '.')
+        {
+            token->type = TOKEN_TECKA;
+            return ERR_OK;
+        }
+        if (c == ',')
+        {
+            token->type = TOKEN_CARKA;
+            return ERR_OK;
+        }
+        if (c == ';')
+        {
+            token->type = TOKEN_STREDNIK;
+            return ERR_OK;
+        }
+        if (c == '@')
+        {
+            token->type = TOKEN_ZAVINAC;
+            return ERR_OK;
+        }
+
 
         // Tokeny pro porovnávání
         if (c == '<')

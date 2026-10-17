@@ -44,6 +44,10 @@ typedef enum
     TOKEN_LZAVORKA, // (
     TOKEN_PZAVORKA, // )
     TOKEN_DVOJTEC,  // :
+    TOKEN_TECKA,    // .
+    TOKEN_CARKA,    // ,
+    TOKEN_STREDNIK, // ;
+    TOKEN_ZAVINAC,  // @
 
     TOKEN_MENSI,       // <
     TOKEN_VETSI,       // >
