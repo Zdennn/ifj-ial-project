@@ -30,6 +30,9 @@ typedef enum
     TOKEN_THEN,
     TOKEN_UNIT,
 
+    // Tokeny pro hodnoty
+    TOKEN_STRING_HOD,
+
     // TODO duplikace tokenu rovno zatím oprava na STEJNO = x ==
     TOKEN_ROVNO,    // =
     TOKEN_PLUS,     // +

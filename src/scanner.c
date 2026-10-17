@@ -54,6 +54,10 @@ int get_next_token(Token *token)
             {
                 token->type = TOKEN_IF;
             }
+            else if (strcmp(buffer, "else") == 0)
+            {
+                token->type = TOKEN_ELSE;
+            }
             else if (strcmp(buffer, "var") == 0)
             {
                 token->type = TOKEN_VAR;
@@ -90,6 +94,10 @@ int get_next_token(Token *token)
             {
                 token->type = TOKEN_UNIT;
             }
+            else if (strcmp(buffer, "def") == 0)
+            {
+                token->type = TOKEN_DEF;
+            }
             else
             {
                 token->type = TOKEN_ID;
@@ -99,133 +107,214 @@ int get_next_token(Token *token)
 
             // Podle rozšíření přidávat další tokeny
         }
-    }
 
-    // Tokeny pro čísla
-    if (isdigit(c))
-    {
-        char buffer[256];
-        int len = 0;
+        // Tokeny pro čísla
+        if (isdigit(c))
+        {
+            char buffer[256];
+            int len = 0;
 
-        while ((c = getchar()) != EOF && (isdigit(c) || c == '_' || c == '.'))
-        {
-            if (len < 255 && c != '_')
-                buffer[len++] = c;
-        }
-        ungetc(c, stdin);
-        if (strchr(buffer, '.') != NULL)
-        {
-            strtod(buffer, NULL);
-        }
-        else
-        {
-            strtol(buffer, NULL, 10);
-        }
-        return ERR_OK;
-    }
-
-    // Tokeny pro operace
-    if (c == '=')
-    {
-        if ((c = getchar()) != EOF && c == '=') // ==
-        {
-            token->type = TOKEN_STEJNO;
-        }
-        else
-        {
-            token->type = TOKEN_ROVNO;
-            if (c != EOF)
+            while ((c = getchar()) != EOF && (isdigit(c) || c == '_' || c == '.'))
             {
-                ungetc(c, stdin);
+                if (len < 255 && c != '_')
+                    buffer[len++] = c;
             }
-        }
-        return ERR_OK;
-    }
-    if (c == '+')
-    {
-        token->type = TOKEN_PLUS;
-        return ERR_OK;
-    }
-    if (c == '-')
-    {
-        token->type = TOKEN_MINUS;
-        return ERR_OK;
-    }
-    if (c == '*')
-    {
-        token->type = TOKEN_NAS;
-        return ERR_OK;
-    }
-    if (c == '/')
-    {
-        token->type = TOKEN_DEL;
-        return ERR_OK;
-    }
-    if (c == '(')
-    {
-        token->type = TOKEN_LZAVORKA;
-        return ERR_OK;
-    }
-    if (c == ')')
-    {
-        token->type = TOKEN_PZAVORKA;
-        return ERR_OK;
-    }
-    if (c == ':')
-    {
-        token->type = TOKEN_DVOJTEC;
-        return ERR_OK;
-    }
-
-    // Tokeny pro porovnávání
-    if (c == '<')
-    {
-        if ((c = getchar()) != EOF && c == '=') // <=
-        {
-            token->type = TOKEN_MENSI_ROVNO;
-        }
-        else
-        {
-            token->type = TOKEN_MENSI;
-            if (c != EOF)
+            ungetc(c, stdin);
+            if (strchr(buffer, '.') != NULL)
             {
-                ungetc(c, stdin);
+                strtod(buffer, NULL);
             }
-        }
-        return ERR_OK;
-    }
-    if (c == '>')
-    {
-        if ((c = getchar()) != EOF && c == '=') // >=
-        {
-            token->type = TOKEN_VETSI_ROVNO;
-        }
-        else
-        {
-            token->type = TOKEN_VETSI;
-            if (c != EOF)
+            else
             {
-                ungetc(c, stdin);
+                strtol(buffer, NULL, 10);
             }
-        }
-        return ERR_OK;
-    }
-    if (c == '!')
-    {
-        if ((c = getchar()) != EOF && c == '=') // !=
-        {
-            token->type = TOKEN_NE_ROVNO;
             return ERR_OK;
         }
-        else if (c != EOF)
+
+        // Tokeny pro řetězce
+        if (c == '"')
         {
-            ungetc(c, stdin);
-            return ERR_LEX;
+            char *buffer = (char *)malloc(sizeof(char) * 3); // *3 kvuli koncovemu znaku size=2
+            if (buffer == NULL)
+                return ERR_INTERNAL;
+
+            int len = 0;
+            int size = 2;
+
+            // Jednořádkový řetězec
+            if ((c = getchar()) != '"')
+            {
+                ungetc(c, stdin);
+                while ((c = getchar()) != '"')
+                {
+                    if (c == EOF)
+                    {
+                        return ERR_LEX;
+                    }
+
+                    if (c == '\n')
+                    {
+                        return ERR_LEX;
+                    }
+
+                    if (c == '\\')
+                    {
+                        c = getchar();
+
+                        if (c == EOF)
+                        {
+                            return ERR_LEX;
+                        }
+
+                        switch (c)
+                        {
+                        case '\\':
+                            c = '\\';
+                            break;
+                        case '"':
+                            c = '"';
+                            break;
+                        case 'n':
+                            c = '\n';
+                            break;
+                        case 'r':
+                            c = '\r';
+                            break;
+                        case 't':
+                            c = '\t';
+                            break;
+
+                        default:
+                            return ERR_LEX;
+                        }
+                    }
+                    if (len >= size)
+                    {
+                        size = size * 2;
+                        char *new_buff =
+                            (char *)realloc(buffer, sizeof(char) * (size + 1)); // +1 kvuli ukončení řetezce \0
+                        if (new_buff == NULL)
+                        {
+                            return ERR_INTERNAL;
+                        }
+                        buffer = new_buff;
+                    }
+
+                    buffer[len++] = c;
+                }
+
+                buffer[len] = '\0';
+                token->type = TOKEN_STRING_HOD;
+                token->string = buffer;
+            }
+            // Více řádkový řetězec
+            else
+            {
+            }
         }
+
+        // Tokeny pro operace
+        if (c == '=')
+        {
+            if ((c = getchar()) != EOF && c == '=') // ==
+            {
+                token->type = TOKEN_STEJNO;
+            }
+            else
+            {
+                token->type = TOKEN_ROVNO;
+                if (c != EOF)
+                {
+                    ungetc(c, stdin);
+                }
+            }
+            return ERR_OK;
+        }
+        if (c == '+')
+        {
+            token->type = TOKEN_PLUS;
+            return ERR_OK;
+        }
+        if (c == '-')
+        {
+            token->type = TOKEN_MINUS;
+            return ERR_OK;
+        }
+        if (c == '*')
+        {
+            token->type = TOKEN_NAS;
+            return ERR_OK;
+        }
+        if (c == '/')
+        {
+            token->type = TOKEN_DEL;
+            return ERR_OK;
+        }
+        if (c == '(')
+        {
+            token->type = TOKEN_LZAVORKA;
+            return ERR_OK;
+        }
+        if (c == ')')
+        {
+            token->type = TOKEN_PZAVORKA;
+            return ERR_OK;
+        }
+        if (c == ':')
+        {
+            token->type = TOKEN_DVOJTEC;
+            return ERR_OK;
+        }
+
+        // Tokeny pro porovnávání
+        if (c == '<')
+        {
+            if ((c = getchar()) != EOF && c == '=') // <=
+            {
+                token->type = TOKEN_MENSI_ROVNO;
+            }
+            else
+            {
+                token->type = TOKEN_MENSI;
+                if (c != EOF)
+                {
+                    ungetc(c, stdin);
+                }
+            }
+            return ERR_OK;
+        }
+        if (c == '>')
+        {
+            if ((c = getchar()) != EOF && c == '=') // >=
+            {
+                token->type = TOKEN_VETSI_ROVNO;
+            }
+            else
+            {
+                token->type = TOKEN_VETSI;
+                if (c != EOF)
+                {
+                    ungetc(c, stdin);
+                }
+            }
+            return ERR_OK;
+        }
+        if (c == '!')
+        {
+            if ((c = getchar()) != EOF && c == '=') // !=
+            {
+                token->type = TOKEN_NE_ROVNO;
+                return ERR_OK;
+            }
+            else if (c != EOF)
+            {
+                ungetc(c, stdin);
+                return ERR_LEX;
+            }
+        }
+
+        return ERR_LEX;
     }
-
-    return ERR_LEX;
-
     // Token konce souboru
     token->type = TOKEN_EOF;
     return ERR_OK;
