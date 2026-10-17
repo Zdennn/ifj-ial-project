@@ -29,11 +29,80 @@ int get_next_token(Token *token)
             return ERR_OK;
         }
 
+        if (c == '/')
+        {
+            c = getchar();
+
+            // jednořádkový komentář
+            if (c == '/')
+            {
+                while ((c = getchar()) != '\n' && c != EOF)
+                    ;
+
+                token->type = TOKEN_EOL;
+                return ERR_OK;
+            }
+            // víceřádkový komentář
+            else if (c == '*')
+            {
+                int zanoreni = 1;
+                int prev_c = 0;
+                int radek = 0;
+
+                while (zanoreni > 0)
+                {
+                    c = getchar();
+                    if (c == EOF)
+                    {
+                        return ERR_LEX;
+                    }
+
+                    if (c == '\n')
+                    {
+                        radek = 1;
+                    }
+
+                    if (prev_c == '/' && c == '*')
+                    {
+                        zanoreni++;
+                    }
+                    else if (prev_c == '*' && c == '/')
+                    {
+                        zanoreni--;
+                        prev_c = 0;
+                    }
+
+                    prev_c = c;
+                }
+
+                if (radek == 1)
+                {
+                    token->type = TOKEN_EOL;
+                    return ERR_OK;
+                }
+                else
+                    continue;
+            }
+            else
+            {
+                if (c != EOF)
+                {
+                    ungetc(c, stdin);
+                }
+                token->type = TOKEN_DEL;
+                return ERR_OK;
+            }
+        }
+
         // Tokeny pro identifikátory nebo while, if...
-        if (isalpha(c))
+        if (isalpha(c) || c == '_')
         {
             char buffer[256];
             int len = 0;
+
+            if (len < 255)
+                buffer[len++] = c;
+
             while ((c = getchar()) != EOF && (isalnum(c) || c == '_'))
             {
                 if (len < 255)
