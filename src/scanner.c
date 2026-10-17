@@ -206,10 +206,118 @@ int get_next_token(Token *token)
                 buffer[len] = '\0';
                 token->type = TOKEN_STRING_HOD;
                 token->string = buffer;
+
+                return ERR_OK;
             }
             // Více řádkový řetězec
             else
             {
+                if ((c = getchar()) == '"')
+                {
+                    if ((c = getchar()) == '"')
+                    {
+                        char *buffer = (char *)malloc(sizeof(char) * 3); // *3 kvuli koncovemu znaku size=2
+                        if (buffer == NULL)
+                            return ERR_INTERNAL;
+
+                        int len = 0;
+                        int size = 2;
+
+                        while (1)
+                        {
+                            c = getchar();
+                            if (c == EOF)
+                            {
+                                return ERR_LEX;
+                            }
+
+                            if (c == '\\')
+                            {
+                                c = getchar();
+
+                                if (c == EOF)
+                                {
+                                    return ERR_LEX;
+                                }
+
+                                if (c == '"')
+                                {
+                                    int c2 = getchar();
+                                    if (c2 == '"')
+                                    {
+                                        int c3 = getchar();
+                                        if (c3 == '"')
+                                        {
+                                            break;
+                                        }
+                                        ungetc(c3, stdin);
+                                    }
+                                    ungetc(c2, stdin);
+                                }
+
+                                switch (c)
+                                {
+                                case '\\':
+                                    c = '\\';
+                                    break;
+                                case '"':
+                                    c = '"';
+                                    break;
+                                case 'n':
+                                    c = '\n';
+                                    break;
+                                case 'r':
+                                    c = '\r';
+                                    break;
+                                case 't':
+                                    c = '\t';
+                                    break;
+
+                                default:
+                                    return ERR_LEX;
+                                }
+                            }
+                            if (len >= size)
+                            {
+                                size = size * 2;
+                                char *new_buff =
+                                    (char *)realloc(buffer, sizeof(char) * (size + 1)); // +1 kvuli ukončení řetezce \0
+                                if (new_buff == NULL)
+                                {
+                                    return ERR_INTERNAL;
+                                }
+                                buffer = new_buff;
+                            }
+
+                            buffer[len++] = c;
+                        }
+
+                        buffer[len] = '\0';
+                        token->type = TOKEN_STRING_HOD;
+                        token->string = buffer;
+
+                        return ERR_OK;
+                    }
+                    else
+                    {
+                        ungetc(c, stdin);
+                    }
+                }
+                else
+                {
+                    ungetc(c, stdin);
+                }
+
+                char *buffer = (char *)malloc(sizeof(char) * 2);
+
+                if (buffer == NULL)
+                    return ERR_INTERNAL;
+
+                buffer[0] = '\0';
+                token->type = TOKEN_STRING_HOD;
+                token->string = buffer;
+
+                return ERR_OK;
             }
         }
 
@@ -315,6 +423,7 @@ int get_next_token(Token *token)
 
         return ERR_LEX;
     }
+
     // Token konce souboru
     token->type = TOKEN_EOF;
     return ERR_OK;
