@@ -24,6 +24,87 @@ static char *str_dup(const char *src)
     return copy;
 }
 
+static int pruchod_cislo(int c, char *buffer, int *len, int *ma_e, int *ma_d, int *tecka)
+{
+    int new_len = (*len);
+    while (c != EOF && (isdigit(c) || c == '_' || c == '.' || tolower(c) == 'e' || tolower(c) == 'd'))
+    {
+        c = tolower(c);
+
+        if (c == 'e')
+        {
+            (*ma_e)++;
+
+            if ((*ma_e) > 1)
+            {
+                return ERR_LEX;
+            }
+
+            buffer[new_len++] = 'e';
+            c = getchar();
+            if (c == '+' || c == '-')
+            {
+                buffer[new_len++] = c;
+                c = getchar();
+                if (!isdigit(c))
+                {
+                    return ERR_LEX;
+                }
+            }
+            else if (!isdigit(c))
+            {
+                return ERR_LEX;
+            }
+        }
+
+        if (c == 'd')
+        {
+            (*ma_d)++;
+
+            c = getchar();
+            if (isdigit(c) || (*ma_d) > 1 || c == 'd')
+            {
+                return ERR_LEX;
+            }
+
+            buffer[new_len++] = 'd';
+            ungetc(c, stdin);
+        }
+
+        if (c == '.')
+        {
+            if ((*ma_e) > 0)
+            {
+                return ERR_LEX;
+            }
+
+            (*tecka)++;
+            int next_c = getchar();
+
+            if (!isdigit(next_c))
+            {
+                return ERR_LEX;
+            }
+
+            ungetc(next_c, stdin);
+        }
+
+        if ((*tecka) > 1)
+        {
+            return ERR_LEX;
+        }
+
+        if (new_len < 255 && c != '_')
+            buffer[new_len++] = c;
+        c = getchar();
+    }
+
+    ungetc(c, stdin);
+    *len = new_len;
+
+    return ERR_OK;
+}
+
 int get_next_token(Token *token)
 {
     int c;
@@ -220,82 +301,15 @@ int get_next_token(Token *token)
 
             int tecka = 0;
 
-            while (c != EOF && (isdigit(c) || c == '_' || c == '.' || tolower(c) == 'e' || tolower(c) == 'd'))
+            int status = pruchod_cislo(c, buffer, &len, &ma_e, &ma_d, &tecka);
+
+            if (status != ERR_OK)
             {
-                c = tolower(c);
-
-                if (c == 'e')
-                {
-                    ma_e++;
-
-                    if (ma_e > 1)
-                    {
-                        return ERR_LEX;
-                    }
-                    
-
-                    buffer[len++] = 'e';
-                    c = getchar();
-                    if (c == '+' || c == '-')
-                    {
-                        buffer[len++] = c;
-                        c = getchar();
-                        if (!isdigit(c))
-                        {
-                            return ERR_LEX;
-                        }
-                    }
-                    else if (!isdigit(c))
-                    {
-                        return ERR_LEX;
-                    }
-                }
-
-                if (c == 'd')
-                {
-                    ma_d++;
-
-                    c = getchar();
-                    if (isdigit(c) || ma_d > 1 || c == 'd')
-                    {
-                        return ERR_LEX;
-                    }
-
-                    buffer[len++] = 'd';
-                    ungetc(c, stdin);
-                }
-
-                if (c == '.')
-                {
-                    if (ma_e > 0)
-                    {
-                        return ERR_LEX;
-                    }
-
-                    tecka++;
-                    int next_c = getchar();
-
-                    if (!isdigit(next_c))
-                    {
-                        return ERR_LEX;
-                    }
-
-                    ungetc(next_c, stdin);
-                }
-
-                if (tecka > 1)
-                {
-                    return ERR_LEX;
-                }
-
-                if (len < 255 && c != '_')
-                    buffer[len++] = c;
-                c = getchar();
+                return status;
             }
-            buffer[len] = '\0';
-            ungetc(c, stdin);
 
-            // if (strchr(buffer, '.') != NULL)
+            buffer[len] = '\0';
+
             if (ma_e == 1 || tecka == 1 || ma_d == 1)
             {
                 token->type = TOKEN_DOUBLE_HOD;
@@ -515,6 +529,8 @@ int get_next_token(Token *token)
             int tecka = 1;
             char buffer[256];
             int len = 0;
+            int ma_e = 0;
+            int ma_d = 0;
 
             buffer[len++] = '.';
 
@@ -523,33 +539,12 @@ int get_next_token(Token *token)
             {
                 token->type = TOKEN_DOUBLE_HOD;
 
-                while (c != EOF && (isdigit(c) || c == '_' || c == '.'))
+                int status = pruchod_cislo(c, buffer, &len, &ma_e, &ma_d, &tecka);
+
+                if (status != ERR_OK)
                 {
-
-                    if (c == '.')
-                    {
-                        tecka++;
-                        int next_c = getchar();
-
-                        if (!isdigit(next_c))
-                        {
-                            return ERR_LEX;
-                        }
-
-                        ungetc(next_c, stdin);
-                    }
-
-                    if (tecka > 1)
-                    {
-                        return ERR_LEX;
-                    }
-
-                    if (len < 255 && c != '_')
-                        buffer[len++] = c;
-                    c = getchar();
+                    return status;
                 }
-
-                ungetc(c, stdin);
 
                 buffer[len] = '\0';
                 token->double_val = strtod(buffer, NULL);
