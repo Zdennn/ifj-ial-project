@@ -4,7 +4,7 @@
  *
  * Čte vstup po znacích ze stdin a převádí je na tokeny, které předává syntaktickému analyzátoru (parser).
  *
- * @author ...
+ * @author Zdeněk Michalec, Jonáš Javůrek, Tadeáš Trynkl
  */
 #include "scanner.h"
 #include "error.h"
@@ -38,7 +38,7 @@ static int pruchod_cislo(int c, char *buffer, int *len, int *ma_e, int *ma_d, in
             {
                 return ERR_LEX;
             }
-            
+
             ungetc(next_c, stdin);
         }
 
