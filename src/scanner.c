@@ -203,6 +203,8 @@ int get_next_token(Token *token)
         {
             char buffer[256];
             int len = 0;
+            int ma_e = 0;
+            int ma_d = 0;
 
             if (c == '0')
             {
@@ -218,11 +220,58 @@ int get_next_token(Token *token)
 
             int tecka = 0;
 
-            while (c != EOF && (isdigit(c) || c == '_' || c == '.'))
+            while (c != EOF && (isdigit(c) || c == '_' || c == '.' || tolower(c) == 'e' || tolower(c) == 'd'))
             {
+                c = tolower(c);
+
+                if (c == 'e')
+                {
+                    ma_e++;
+
+                    if (ma_e > 1)
+                    {
+                        return ERR_LEX;
+                    }
+                    
+
+                    buffer[len++] = 'e';
+                    c = getchar();
+                    if (c == '+' || c == '-')
+                    {
+                        buffer[len++] = c;
+                        c = getchar();
+                        if (!isdigit(c))
+                        {
+                            return ERR_LEX;
+                        }
+                    }
+                    else if (!isdigit(c))
+                    {
+                        return ERR_LEX;
+                    }
+                }
+
+                if (c == 'd')
+                {
+                    ma_d++;
+
+                    c = getchar();
+                    if (isdigit(c) || ma_d > 1 || c == 'd')
+                    {
+                        return ERR_LEX;
+                    }
+
+                    buffer[len++] = 'd';
+                    ungetc(c, stdin);
+                }
 
                 if (c == '.')
                 {
+                    if (ma_e > 0)
+                    {
+                        return ERR_LEX;
+                    }
+
                     tecka++;
                     int next_c = getchar();
 
@@ -246,7 +295,8 @@ int get_next_token(Token *token)
             buffer[len] = '\0';
             ungetc(c, stdin);
 
-            if (strchr(buffer, '.') != NULL)
+            // if (strchr(buffer, '.') != NULL)
+            if (ma_e == 1 || tecka == 1 || ma_d == 1)
             {
                 token->type = TOKEN_DOUBLE_HOD;
                 token->double_val = strtod(buffer, NULL);
@@ -468,6 +518,7 @@ int get_next_token(Token *token)
 
             buffer[len++] = '.';
 
+            // Desetinné číslo
             if (isdigit(c))
             {
                 token->type = TOKEN_DOUBLE_HOD;
