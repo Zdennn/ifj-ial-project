@@ -204,8 +204,41 @@ int get_next_token(Token *token)
             char buffer[256];
             int len = 0;
 
+            if (c == '0')
+            {
+                int next_c = getchar();
+
+                if (isdigit(next_c) || next_c == '_')
+                {
+                    return ERR_LEX;
+                }
+
+                ungetc(next_c, stdin);
+            }
+
+            int tecka = 0;
+
             while (c != EOF && (isdigit(c) || c == '_' || c == '.'))
             {
+
+                if (c == '.')
+                {
+                    tecka++;
+                    int next_c = getchar();
+
+                    if (!isdigit(next_c))
+                    {
+                        return ERR_LEX;
+                    }
+
+                    ungetc(next_c, stdin);
+                }
+
+                if (tecka > 1)
+                {
+                    return ERR_LEX;
+                }
+
                 if (len < 255 && c != '_')
                     buffer[len++] = c;
                 c = getchar();
@@ -428,7 +461,54 @@ int get_next_token(Token *token)
         }
         if (c == '.')
         {
-            token->type = TOKEN_TECKA;
+            c = getchar();
+            int tecka = 1;
+            char buffer[256];
+            int len = 0;
+
+            buffer[len++] = '.';
+
+            if (isdigit(c))
+            {
+                token->type = TOKEN_DOUBLE_HOD;
+
+                while (c != EOF && (isdigit(c) || c == '_' || c == '.'))
+                {
+
+                    if (c == '.')
+                    {
+                        tecka++;
+                        int next_c = getchar();
+
+                        if (!isdigit(next_c))
+                        {
+                            return ERR_LEX;
+                        }
+
+                        ungetc(next_c, stdin);
+                    }
+
+                    if (tecka > 1)
+                    {
+                        return ERR_LEX;
+                    }
+
+                    if (len < 255 && c != '_')
+                        buffer[len++] = c;
+                    c = getchar();
+                }
+
+                ungetc(c, stdin);
+
+                buffer[len] = '\0';
+                token->double_val = strtod(buffer, NULL);
+            }
+            else
+            {
+                ungetc(c, stdin);
+                token->type = TOKEN_TECKA;
+            }
+
             return ERR_OK;
         }
         if (c == ',')
@@ -446,7 +526,6 @@ int get_next_token(Token *token)
             token->type = TOKEN_ZAVINAC;
             return ERR_OK;
         }
-
 
         // Tokeny pro porovnávání
         if (c == '<')

@@ -35,7 +35,6 @@ typedef enum
     TOKEN_INT_HOD,
     TOKEN_DOUBLE_HOD,
 
-    // TODO duplikace tokenu rovno zatím oprava na STEJNO = x ==
     TOKEN_ROVNO,    // =
     TOKEN_PLUS,     // +
     TOKEN_MINUS,    // -
