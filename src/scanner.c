@@ -31,6 +31,17 @@ static int pruchod_cislo(int c, char *buffer, int *len, int *ma_e, int *ma_d, in
     {
         c = tolower(c);
 
+        if (c == '_')
+        {
+            int next_c = getchar();
+            if (!isdigit(next_c))
+            {
+                return ERR_LEX;
+            }
+            
+            ungetc(next_c, stdin);
+        }
+
         if (c == 'e')
         {
             (*ma_e)++;
