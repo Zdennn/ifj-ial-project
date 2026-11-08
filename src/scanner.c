@@ -73,7 +73,7 @@ static int pruchod_cislo(int c, char *buffer, int *len, int *ma_e, int *ma_d, in
             (*ma_d)++;
 
             c = getchar();
-            if (isdigit(c) || (*ma_d) > 1 || c == 'd')
+            if (isdigit(c) || (*ma_d) > 1 || c == 'd' || isalpha(c))
             {
                 return ERR_LEX;
             }
