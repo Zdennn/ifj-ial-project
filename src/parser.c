@@ -11,3 +11,9 @@
  */
 #include "error.h"
 #include "token.h"
+
+int parse()
+{
+
+    return;
+}
