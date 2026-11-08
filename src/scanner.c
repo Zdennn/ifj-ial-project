@@ -29,6 +29,11 @@ static int pruchod_cislo(int c, char *buffer, int *len, int *ma_e, int *ma_d, in
     int new_len = (*len);
     while (c != EOF && (isdigit(c) || c == '_' || c == '.' || tolower(c) == 'e' || tolower(c) == 'd'))
     {
+        if (new_len >= 250)
+        {
+            return ERR_LEX;
+        }
+
         c = tolower(c);
 
         if (c == '_')
@@ -73,13 +78,16 @@ static int pruchod_cislo(int c, char *buffer, int *len, int *ma_e, int *ma_d, in
             (*ma_d)++;
 
             c = getchar();
-            if (isdigit(c) || (*ma_d) > 1 || c == 'd' || isalpha(c))
+            if (isalnum(c) || c == '_' || c == '.' || (*ma_d) > 1)
             {
                 return ERR_LEX;
             }
 
             buffer[new_len++] = 'd';
             ungetc(c, stdin);
+            *len = new_len;
+
+            return ERR_OK;
         }
 
         if (c == '.')
@@ -116,6 +124,27 @@ static int pruchod_cislo(int c, char *buffer, int *len, int *ma_e, int *ma_d, in
     return ERR_OK;
 }
 
+static int letter = 0;
+static int space = 0;
+static int tab = 0;
+static int zacatek = 1;
+static int zavorky = 0;
+static int odsazeni = 0;
+static int kontrola = 0;
+static int po_kom = 0;
+
+void scanner_reset()
+{
+    letter = 0;
+    space = 0;
+    tab = 0;
+    zacatek = 1;
+    zavorky = 0;
+    odsazeni = 0;
+    kontrola = 0;
+    po_kom = 0;
+}
+
 int get_next_token(Token *token)
 {
     int c;
@@ -127,12 +156,55 @@ int get_next_token(Token *token)
     {
 
         if (c == ' ')
+        {
+            if (zacatek)
+            {
+                space++;
+            }
+
             continue;
+        }
+
+        if (c == '\t')
+        {
+            if (zacatek)
+            {
+                tab++;
+            }
+
+            continue;
+        }
+
         if (c == '\n')
         {
-            token->type = TOKEN_EOL;
-            return ERR_OK;
+            // jen white space
+            if (zavorky > 0)
+            {
+                space = 0;
+                tab = 0;
+                zacatek = 1;
+                kontrola = 1;
+                continue;
+            }
+
+            int byl_token = letter;
+            space = 0;
+            letter = 0;
+            tab = 0;
+            zacatek = 1;
+            kontrola = 0;
+            po_kom = 0;
+
+            if (byl_token > 0)
+            {
+                token->type = TOKEN_EOL;
+                return ERR_OK;
+            }
+
+            continue;
         }
+
+        zacatek = 0;
 
         if (c == '/')
         {
@@ -144,8 +216,12 @@ int get_next_token(Token *token)
                 while ((c = getchar()) != '\n' && c != EOF)
                     ;
 
-                token->type = TOKEN_EOL;
-                return ERR_OK;
+                if (c == '\n')
+                {
+                    ungetc(c, stdin);
+                }
+
+                continue;
             }
             // víceřádkový komentář
             else if (c == '*')
@@ -183,13 +259,24 @@ int get_next_token(Token *token)
                     }
                 }
 
-                if (radek == 1)
+                if (radek == 1 && zavorky == 0)
                 {
-                    token->type = TOKEN_EOL;
-                    return ERR_OK;
+                    int byl_token = letter;
+                    space = 0;
+                    letter = 0;
+                    tab = 0;
+                    zacatek = 1;
+                    kontrola = 0;
+                    po_kom = 1;
+
+                    if (byl_token > 0)
+                    {
+                        token->type = TOKEN_EOL;
+                        return ERR_OK;
+                    }
                 }
-                else
-                    continue;
+
+                continue;
             }
             else
             {
@@ -197,9 +284,37 @@ int get_next_token(Token *token)
                 {
                     ungetc(c, stdin);
                 }
-                token->type = TOKEN_DEL;
-                return ERR_OK;
+                c = '/';
             }
+        }
+
+        if (po_kom)
+            return ERR_LEX;
+
+        if (kontrola)
+        {
+            kontrola = 0;
+            if (c != ')' && space <= odsazeni)
+                return ERR_LEX;
+        }
+
+        letter++;
+        if (letter == 1)
+        {
+            ungetc(c, stdin);
+            letter = 2;
+            odsazeni = space;
+
+            if (tab != 0)
+                return ERR_LEX;
+
+            if (space == 0)
+                continue;
+
+            token->type = TOKEN_ODSAZENI;
+            token->int_val = space;
+            space = 0;
+            return ERR_OK;
         }
 
         // Tokeny pro identifikátory nebo while, if...
@@ -277,6 +392,9 @@ int get_next_token(Token *token)
             }
             else
             {
+                if (len == 1 && buffer[0] == '_')
+                    return ERR_LEX;
+
                 token->type = TOKEN_ID;
                 token->string = str_dup(buffer);
 
@@ -286,8 +404,6 @@ int get_next_token(Token *token)
                 }
             }
             return ERR_OK;
-
-            // Podle rozšíření přidávat další tokeny
         }
 
         // Tokeny pro čísla
@@ -521,11 +637,14 @@ int get_next_token(Token *token)
         }
         if (c == '(')
         {
+            zavorky++;
             token->type = TOKEN_LZAVORKA;
             return ERR_OK;
         }
         if (c == ')')
         {
+            if (zavorky > 0)
+                zavorky--;
             token->type = TOKEN_PZAVORKA;
             return ERR_OK;
         }
@@ -632,6 +751,13 @@ int get_next_token(Token *token)
         }
 
         return ERR_LEX;
+    }
+
+    if (letter > 0)
+    {
+        letter = 0;
+        token->type = TOKEN_EOL;
+        return ERR_OK;
     }
 
     // Token konce souboru

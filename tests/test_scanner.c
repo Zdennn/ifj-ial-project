@@ -21,15 +21,6 @@ static int testu_chyb = 0;
         }                                                                                                              \
     } while (0)
 
-static int zacatek_radku = 1;
-static int hloubka_zavorek = 0;
-
-void scanner_reset()
-{
-    zacatek_radku = 1;
-    hloubka_zavorek = 0;
-}
-
 static void set_input(const char *text)
 {
     FILE *f = fopen(TMP_FILE, "w");
@@ -46,6 +37,7 @@ static void set_input(const char *text)
         perror("freopen");
         exit(99);
     }
+
     scanner_reset();
 }
 
@@ -64,6 +56,8 @@ static void expect_error(int err)
     Token t;
     int rc = get_next_token(&t);
     CHECK(rc == err);
+    if (t.string != NULL)
+        free(t.string);
 }
 
 static void test_klicova_slova()
@@ -85,6 +79,7 @@ static void test_klicova_slova()
     expect_token(TOKEN_DOUBLE);
     expect_token(TOKEN_STRING);
     expect_token(TOKEN_UNIT);
+    expect_token(TOKEN_EOL);
     expect_token(TOKEN_EOF);
 }
 
@@ -204,7 +199,6 @@ static void test_komentare()
     printf("test_komentare\n");
 
     set_input("// komentar\nvar");
-    expect_token(TOKEN_EOL);
     expect_token(TOKEN_VAR);
 
     set_input("/* x */ var");
@@ -245,6 +239,7 @@ static void test_eol_a_eof()
     expect_token(TOKEN_VAR);
     expect_token(TOKEN_EOL);
     expect_token(TOKEN_VAL);
+    expect_token(TOKEN_EOL);
     expect_token(TOKEN_EOF);
 }
 
@@ -393,6 +388,7 @@ static void test_dlouhy_identifikator()
 
     set_input(buf);
     expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
     expect_token(TOKEN_EOF);
 }
 
@@ -402,6 +398,7 @@ static void test_d_okraje()
 
     set_input("1d");
     expect_token(TOKEN_DOUBLE_HOD);
+    expect_token(TOKEN_EOL);
     expect_token(TOKEN_EOF);
 
     set_input("(1d)");
@@ -440,6 +437,7 @@ static void test_program()
     expect_token(TOKEN_ROVNO);
     expect_token(TOKEN_EOL);
 
+    expect_token(TOKEN_ODSAZENI);
     expect_token(TOKEN_VAR);
     expect_token(TOKEN_ID);
     expect_token(TOKEN_DVOJTEC);
@@ -448,6 +446,7 @@ static void test_program()
     expect_token(TOKEN_INT_HOD);
     expect_token(TOKEN_EOL);
 
+    expect_token(TOKEN_ODSAZENI);
     expect_token(TOKEN_WHILE);
     expect_token(TOKEN_ID);
     expect_token(TOKEN_VETSI);
@@ -455,6 +454,7 @@ static void test_program()
     expect_token(TOKEN_DO);
     expect_token(TOKEN_EOL);
 
+    expect_token(TOKEN_ODSAZENI);
     expect_token(TOKEN_ID);
     expect_token(TOKEN_ROVNO);
     expect_token(TOKEN_ID);
@@ -478,18 +478,21 @@ static void test_odsazeni_hodnoty()
     CHECK(get_next_token(&t) == ERR_OK);
     CHECK(t.type == TOKEN_ODSAZENI);
     CHECK(t.int_val == 2);
+    if (t.string != NULL)
+        free(t.string);
+
     expect_token(TOKEN_ID);
     expect_token(TOKEN_EOL);
 
     CHECK(get_next_token(&t) == ERR_OK);
     CHECK(t.type == TOKEN_ODSAZENI);
     CHECK(t.int_val == 4);
+    if (t.string != NULL)
+        free(t.string);
+
     expect_token(TOKEN_ID);
     expect_token(TOKEN_EOL);
 
-    CHECK(get_next_token(&t) == ERR_OK);
-    CHECK(t.type == TOKEN_ODSAZENI);
-    CHECK(t.int_val == 0);
     expect_token(TOKEN_ID);
     expect_token(TOKEN_EOL);
 
@@ -508,7 +511,6 @@ static void test_odsazeni_else()
     expect_token(TOKEN_ODSAZENI);
     expect_token(TOKEN_ID);
     expect_token(TOKEN_EOL);
-    expect_token(TOKEN_ODSAZENI);
     expect_token(TOKEN_ELSE);
     expect_token(TOKEN_EOL);
     expect_token(TOKEN_ODSAZENI);
@@ -550,7 +552,6 @@ static void test_radky_s_komentarem()
     set_input("a // komentar\nb\n");
     expect_token(TOKEN_ID);
     expect_token(TOKEN_EOL);
-    expect_token(TOKEN_ODSAZENI);
     expect_token(TOKEN_ID);
     expect_token(TOKEN_EOL);
     expect_token(TOKEN_EOF);
@@ -568,11 +569,10 @@ static void test_tabulator()
     expect_token(TOKEN_EOL);
     expect_error(ERR_LEX);
 
-    /* řádek jen z tabulátoru je prázdný (moje interpretace zadání) */
+    /* řádek jen s tabulátorem je prázdný, ignoruje se */
     set_input("a\n\t\nb\n");
     expect_token(TOKEN_ID);
     expect_token(TOKEN_EOL);
-    expect_token(TOKEN_ODSAZENI);
     expect_token(TOKEN_ID);
     expect_token(TOKEN_EOL);
     expect_token(TOKEN_EOF);
@@ -582,7 +582,6 @@ static void test_zavorky_novy_radek()
 {
     printf("test_zavorky_novy_radek\n");
 
-    /* uvnitř závorek žádné EOL ani ODSAZENI */
     set_input("f(1,\n    2)\n");
     expect_token(TOKEN_ID);
     expect_token(TOKEN_LZAVORKA);
@@ -634,7 +633,6 @@ static void test_blokovy_komentar_novy_radek()
     set_input("a /* x\ny */\nb\n");
     expect_token(TOKEN_ID);
     expect_token(TOKEN_EOL);
-    expect_token(TOKEN_ODSAZENI);
     expect_token(TOKEN_ID);
     expect_token(TOKEN_EOL);
     expect_token(TOKEN_EOF);
@@ -654,6 +652,7 @@ static void test_konec_bez_noveho_radku()
     expect_token(TOKEN_EOL);
     expect_token(TOKEN_ODSAZENI);
     expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
     expect_token(TOKEN_EOF);
 }
 
@@ -667,6 +666,238 @@ static void test_podtrzitko()
     set_input("__ _1");
     expect_token(TOKEN_ID);
     expect_token(TOKEN_ID);
+}
+
+static void test_eol_pred_eof()
+{
+    printf("test_eol_pred_eof\n");
+
+    set_input("a");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+    expect_token(TOKEN_EOF); // další volání po konci vstupu dává pořád EOF
+
+    set_input("a\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF); // žádný druhý EOL
+
+    set_input("a // komentar");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+
+    set_input("a /* komentar */");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+
+    set_input("a\n   ");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+
+    set_input("// jen komentar");
+    expect_token(TOKEN_EOF);
+}
+
+static void test_cislo_preteceni()
+{
+    printf("test_cislo_preteceni\n");
+
+    char buf[400];
+
+    // moc dlouhé číslo nesmí přetéct buffer, scanner ho odmítne
+    memset(buf, '1', 300);
+    buf[300] = '\0';
+    set_input(buf);
+    expect_error(ERR_LEX);
+
+    buf[0] = '.';
+    set_input(buf);
+    expect_error(ERR_LEX);
+
+    memset(buf, '1', 300);
+    buf[1] = '.';
+    buf[300] = '\0';
+    set_input(buf);
+    expect_error(ERR_LEX);
+
+    // dlouhé, ale rozumné číslo projde
+    set_input("1_000_000_000");
+    expect_token(TOKEN_INT_HOD);
+}
+
+static void test_d_na_konci_cisla()
+{
+    printf("test_d_na_konci_cisla\n");
+
+    Token t;
+
+    set_input("1d+2");
+    CHECK(get_next_token(&t) == ERR_OK);
+    CHECK(t.type == TOKEN_DOUBLE_HOD);
+    CHECK(t.double_val == 1.0);
+    expect_token(TOKEN_PLUS);
+    expect_token(TOKEN_INT_HOD);
+
+    set_input("1.5d 1e3d (2d)");
+    CHECK(get_next_token(&t) == ERR_OK);
+    CHECK(t.type == TOKEN_DOUBLE_HOD);
+    CHECK(t.double_val == 1.5);
+    CHECK(get_next_token(&t) == ERR_OK);
+    CHECK(t.type == TOKEN_DOUBLE_HOD);
+    CHECK(t.double_val == 1000.0);
+    expect_token(TOKEN_LZAVORKA);
+    expect_token(TOKEN_DOUBLE_HOD);
+    expect_token(TOKEN_PZAVORKA);
+
+    // za d už nesmí nic dalšího patřit k číslu
+    const char *spatne[] = {"1d.5", "1d_0", "1de3", "1dx", "1.5d5"};
+    for (size_t i = 0; i < sizeof(spatne) / sizeof(spatne[0]); i++)
+    {
+        set_input(spatne[i]);
+        expect_error(ERR_LEX);
+    }
+}
+
+static void test_neznami_znaky()
+{
+    printf("test_neznami_znaky\n");
+
+    const char *spatne[] = {"#", "$", "?", "&", "|", "~", "^", "`", "%", "{", "}", "\\", "\xc3\xa1"};
+    for (size_t i = 0; i < sizeof(spatne) / sizeof(spatne[0]); i++)
+    {
+        set_input(spatne[i]);
+        expect_error(ERR_LEX);
+    }
+
+    set_input("a #");
+    expect_token(TOKEN_ID);
+    expect_error(ERR_LEX);
+}
+
+static void test_velke_e_a_d()
+{
+    printf("test_velke_e_a_d\n");
+
+    set_input("1E3 1D 2E+3 2E-3 1.5E3 1.5D 1E3D");
+
+    Token t;
+    double ocekavane[] = {1000.0, 1.0, 2000.0, 0.002, 1500.0, 1.5, 1000.0};
+    for (size_t i = 0; i < sizeof(ocekavane) / sizeof(ocekavane[0]); i++)
+    {
+        CHECK(get_next_token(&t) == ERR_OK);
+        CHECK(t.type == TOKEN_DOUBLE_HOD);
+        CHECK(t.double_val == ocekavane[i]);
+    }
+}
+
+static void test_viceradkovy_bez_escape()
+{
+    printf("test_viceradkovy_bez_escape\n");
+
+    Token t;
+
+    // \n uvnitř """ není escape sekvence, zůstane doslova jako dva znaky
+    set_input("\"\"\"a\\nb\"\"\"");
+    CHECK(get_next_token(&t) == ERR_OK);
+    CHECK(t.type == TOKEN_STRING_HOD);
+    CHECK(strcmp(t.string, "a\\nb") == 0);
+    free(t.string);
+
+    // uvozovky uvnitř
+    set_input("\"\"\"a\"b\"\"c\"\"\"");
+    CHECK(get_next_token(&t) == ERR_OK);
+    CHECK(t.type == TOKEN_STRING_HOD);
+    CHECK(strcmp(t.string, "a\"b\"\"c") == 0);
+    free(t.string);
+
+    // řetězec přes více řádků je pořád jeden logický řádek, další řádek neodsazený
+    set_input("v = \"\"\"a\nb\"\"\" x\ny\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_ROVNO);
+    CHECK(get_next_token(&t) == ERR_OK);
+    CHECK(t.type == TOKEN_STRING_HOD);
+    CHECK(strcmp(t.string, "a\nb") == 0);
+    free(t.string);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+}
+
+static void test_komentare_okraje()
+{
+    printf("test_komentare_okraje\n");
+
+    set_input("/*/ x */ a");
+    expect_token(TOKEN_ID); // "/*/" komentář neukončuje
+
+    set_input("/**/ a");
+    expect_token(TOKEN_ID);
+
+    set_input("a/*c*/b");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_ID);
+
+    set_input("x //\ny");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_ID);
+
+    set_input("a / b");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_DEL);
+    expect_token(TOKEN_ID);
+
+    set_input("/");
+    expect_token(TOKEN_DEL);
+
+    set_input("/* a /* b */");
+    expect_error(ERR_LEX); // vnořený komentář není uzavřen
+
+    set_input("/* a");
+    expect_error(ERR_LEX);
+}
+
+static void test_zavorky_komentar()
+{
+    printf("test_zavorky_komentar\n");
+
+    set_input("f(1, // komentar\n    2)\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_LZAVORKA);
+    expect_token(TOKEN_INT_HOD);
+    expect_token(TOKEN_CARKA);
+    expect_token(TOKEN_INT_HOD);
+    expect_token(TOKEN_PZAVORKA);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+
+    // blokový komentář s novým řádkem uvnitř závorek je jen bílý znak
+    set_input("f(1, /* a\nb */\n    2)\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_LZAVORKA);
+    expect_token(TOKEN_INT_HOD);
+    expect_token(TOKEN_CARKA);
+    expect_token(TOKEN_INT_HOD);
+    expect_token(TOKEN_PZAVORKA);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+
+    // prázdný řádek uvnitř závorek
+    set_input("f(1,\n\n    2)\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_LZAVORKA);
+    expect_token(TOKEN_INT_HOD);
+    expect_token(TOKEN_CARKA);
+    expect_token(TOKEN_INT_HOD);
+    expect_token(TOKEN_PZAVORKA);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
 }
 
 int main()
@@ -701,6 +932,14 @@ int main()
     test_blokovy_komentar_novy_radek();
     test_konec_bez_noveho_radku();
     test_podtrzitko();
+    test_eol_pred_eof();
+    test_cislo_preteceni();
+    test_d_na_konci_cisla();
+    test_neznami_znaky();
+    test_velke_e_a_d();
+    test_viceradkovy_bez_escape();
+    test_komentare_okraje();
+    test_zavorky_komentar();
 
     remove(TMP_FILE);
 
