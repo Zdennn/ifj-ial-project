@@ -21,6 +21,15 @@ static int testu_chyb = 0;
         }                                                                                                              \
     } while (0)
 
+static int zacatek_radku = 1;
+static int hloubka_zavorek = 0;
+
+void scanner_reset()
+{
+    zacatek_radku = 1;
+    hloubka_zavorek = 0;
+}
+
 static void set_input(const char *text)
 {
     FILE *f = fopen(TMP_FILE, "w");
@@ -37,6 +46,7 @@ static void set_input(const char *text)
         perror("freopen");
         exit(99);
     }
+    scanner_reset();
 }
 
 static void expect_token(TokenType type)
@@ -455,6 +465,210 @@ static void test_program()
     expect_token(TOKEN_EOF);
 }
 
+static void test_odsazeni_hodnoty()
+{
+    printf("test_odsazeni_hodnoty\n");
+    set_input("a\n  b\n    c\nd\n");
+
+    Token t;
+
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+
+    CHECK(get_next_token(&t) == ERR_OK);
+    CHECK(t.type == TOKEN_ODSAZENI);
+    CHECK(t.int_val == 2);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+
+    CHECK(get_next_token(&t) == ERR_OK);
+    CHECK(t.type == TOKEN_ODSAZENI);
+    CHECK(t.int_val == 4);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+
+    CHECK(get_next_token(&t) == ERR_OK);
+    CHECK(t.type == TOKEN_ODSAZENI);
+    CHECK(t.int_val == 0);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+
+    expect_token(TOKEN_EOF);
+}
+
+static void test_odsazeni_else()
+{
+    printf("test_odsazeni_else\n");
+    set_input("if x then\n  a\nelse\n  b\n");
+
+    expect_token(TOKEN_IF);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_THEN);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_ODSAZENI);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_ODSAZENI);
+    expect_token(TOKEN_ELSE);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_ODSAZENI);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+}
+
+static void test_prazdne_radky()
+{
+    printf("test_prazdne_radky\n");
+
+    set_input("a\n\n   \n  b\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_ODSAZENI);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+
+    set_input("\n\n  \na\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+}
+
+static void test_radky_s_komentarem()
+{
+    printf("test_radky_s_komentarem\n");
+
+    set_input("a\n      // komentar\n  b\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_ODSAZENI);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+
+    set_input("a // komentar\nb\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_ODSAZENI);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+}
+
+static void test_tabulator()
+{
+    printf("test_tabulator\n");
+
+    set_input("\tvar\n");
+    expect_error(ERR_LEX);
+
+    set_input("a\n\tb\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_error(ERR_LEX);
+
+    /* řádek jen z tabulátoru je prázdný (moje interpretace zadání) */
+    set_input("a\n\t\nb\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_ODSAZENI);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+}
+
+static void test_zavorky_novy_radek()
+{
+    printf("test_zavorky_novy_radek\n");
+
+    /* uvnitř závorek žádné EOL ani ODSAZENI */
+    set_input("f(1,\n    2)\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_LZAVORKA);
+    expect_token(TOKEN_INT_HOD);
+    expect_token(TOKEN_CARKA);
+    expect_token(TOKEN_INT_HOD);
+    expect_token(TOKEN_PZAVORKA);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+
+    set_input("f(g(1,\n      2),\n    3)\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_LZAVORKA);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_LZAVORKA);
+    expect_token(TOKEN_INT_HOD);
+    expect_token(TOKEN_CARKA);
+    expect_token(TOKEN_INT_HOD);
+    expect_token(TOKEN_PZAVORKA);
+    expect_token(TOKEN_CARKA);
+    expect_token(TOKEN_INT_HOD);
+    expect_token(TOKEN_PZAVORKA);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+}
+
+static void test_zavorky_spatne_odsazeni()
+{
+    printf("test_zavorky_spatne_odsazeni\n");
+
+    set_input("f(1,\n2)\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_LZAVORKA);
+    expect_token(TOKEN_INT_HOD);
+    expect_token(TOKEN_CARKA);
+    expect_error(ERR_LEX);
+}
+
+static void test_blokovy_komentar_novy_radek()
+{
+    printf("test_blokovy_komentar_novy_radek\n");
+
+    set_input("a /* x */ b\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+
+    set_input("a /* x\ny */\nb\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_ODSAZENI);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_EOF);
+
+    set_input("a /* x\ny */ b\n");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_error(ERR_LEX);
+}
+
+static void test_konec_bez_noveho_radku()
+{
+    printf("test_konec_bez_noveho_radku\n");
+    set_input("a\n  b");
+
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOL);
+    expect_token(TOKEN_ODSAZENI);
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_EOF);
+}
+
+static void test_podtrzitko()
+{
+    printf("test_podtrzitko\n");
+
+    set_input("_");
+    expect_error(ERR_LEX);
+
+    set_input("__ _1");
+    expect_token(TOKEN_ID);
+    expect_token(TOKEN_ID);
+}
+
 int main()
 {
     test_klicova_slova();
@@ -477,6 +691,16 @@ int main()
     test_dlouhy_identifikator();
     test_d_okraje();
     test_program();
+    test_odsazeni_hodnoty();
+    test_odsazeni_else();
+    test_prazdne_radky();
+    test_radky_s_komentarem();
+    test_tabulator();
+    test_zavorky_novy_radek();
+    test_zavorky_spatne_odsazeni();
+    test_blokovy_komentar_novy_radek();
+    test_konec_bez_noveho_radku();
+    test_podtrzitko();
 
     remove(TMP_FILE);
 

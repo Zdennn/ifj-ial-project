@@ -35,6 +35,8 @@ typedef enum
     TOKEN_INT_HOD,
     TOKEN_DOUBLE_HOD,
 
+    TOKEN_ODSAZENI,
+
     TOKEN_ROVNO,    // =
     TOKEN_PLUS,     // +
     TOKEN_MINUS,    // -
