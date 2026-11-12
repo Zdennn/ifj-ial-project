@@ -65,6 +65,7 @@ typedef struct
     char *string;      // Textová hodnota
     int int_val;       // Celočíselná hodnota
     double double_val; // Hodnota desetiného čísla
+    int line;          // Číslo řádku
 } Token;
 
 #endif
