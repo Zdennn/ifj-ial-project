@@ -53,3 +53,6 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+compiler
+test_input*.*
