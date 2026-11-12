@@ -13,6 +13,7 @@
 #include "scanner.h"
 #include "token.h"
 #include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -82,7 +83,8 @@ ErrorCodes get_n_token()
 
 Token match(TokenType expected)
 {
-    printf("current: %s, expected: %s\n", getTokenName(current_token.type), getTokenName(expected));
+    printf("current: %s, expected: %s, line: %d\n", getTokenName(current_token.type), getTokenName(expected),
+           current_token.line);
     if (current_token.type == expected)
     {
         Token old_token = current_token;
@@ -137,14 +139,65 @@ int parse()
     return ERR_OK;
 }
 
+// void parse_parameters()
+// {
+//     if (current_token.type == TOKEN_PZAVORKA)
+//     {
+//         return;
+//     }
+//     match(TOKEN_ID);
+//     match(TOKEN_DVOJTEC);
+//     match_type();
+//     if (current_token.type == TOKEN_CARKA)
+//     {
+//         match(TOKEN_CARKA);
+//         if (current_token.type == TOKEN_LZAVORKA)
+//         {
+//             printError(ERR_SYN);
+//         }
+
+//         parse_parameters();
+//     }
+// }
 void parse_parameters()
 {
+    if (current_token.type == TOKEN_PZAVORKA)
+    {
+        return;
+    }
     match(TOKEN_ID);
     match(TOKEN_DVOJTEC);
     match_type();
+
     if (current_token.type == TOKEN_CARKA)
     {
-        parse_parameters();
+        int comma_line = current_token.line;
+        match(TOKEN_CARKA);
+
+        if (current_token.type == TOKEN_PZAVORKA)
+        {
+            if (current_token.line == comma_line)
+            {
+                printError(ERR_SYN);
+            }
+            return;
+        }
+        if (current_token.type == TOKEN_ID)
+        {
+            parse_parameters();
+        }
+        else
+        {
+            printError(ERR_SYN);
+        }
+    }
+    else if (current_token.type == TOKEN_PZAVORKA)
+    {
+        return;
+    }
+    else
+    {
+        printError(ERR_SYN);
     }
 }
 
@@ -171,7 +224,7 @@ void parse_statement()
 
 void parse_function()
 {
-    int main_flag = 0;
+    bool main_flag = false;
 
     // TODO Anotace může být na samostatném řádku nebo na stejném řádku s klíčovým slovem def
     if (current_token.type == TOKEN_ZAVINAC)
@@ -180,7 +233,7 @@ void parse_function()
         if (current_token.type == TOKEN_ID && current_token.string != NULL && strcmp(current_token.string, "main") == 0)
         {
             match(TOKEN_ID);
-            main_flag = 1;
+            main_flag = true;
         }
         else
         {
@@ -190,10 +243,10 @@ void parse_function()
 
     match(TOKEN_DEF);
     match(TOKEN_ID);
-
+    int comma_line = current_token.line;
     match(TOKEN_LZAVORKA);
 
-    if (current_token.type == TOKEN_EOL)
+    if (current_token.line != comma_line)
     {
         // Víceřádkové parametry
         // def foo(
@@ -204,26 +257,7 @@ void parse_function()
         {
             printError(ERR_SEM_ARG);
         }
-        // TODO odsazeni = nekolikrak TOKEN_ODSAZENI
-        int pocet_odsazeni = 0;
-        //////////////////////////////////////////////////////////////////////////////////////////
-        // ./compiler < test_input.txt
-        // parse_parameters();
-
-        ///// Proč to nic nedělá????????????????
-        match(TOKEN_ODSAZENI);
-        match(TOKEN_ODSAZENI);
-        match(TOKEN_ODSAZENI);
-        match(TOKEN_ODSAZENI);
-        match(TOKEN_ODSAZENI);
-
-        match(TOKEN_ID);
-        match(TOKEN_DVOJTEC);
-        match_type();
-        if (current_token.type == TOKEN_CARKA)
-        {
-            // TODO novy parametr
-        }
+        parse_parameters();
     }
     else
     {
