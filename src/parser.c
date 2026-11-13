@@ -2,9 +2,9 @@
  * @file parser.c
  * @brief Syntaktický analizátor.
  *
- * Část programu oveřující, zda vstupní tokeny odpovidají syntaktické struktuře jazyka IFJ26.
+ * Část programu oveřující, zda vstupní tokeny odpovidají syntaktické a sémantické struktuře jazyka IFJ26.
  *
- * Řesenou pomocí metody rekurzivního sestupu
+ * Řesenou pomocí metody rekurzivního sestupu a precedenční syntaktickou analýzu
  *
  * @author Zdeněk Michalec
  */
@@ -119,8 +119,188 @@ void match_type()
     }
 }
 
+void parse_block()
+{
+
+    int pocet_odsazeni = current_token.int_val;
+
+    printf("parse_block\n");
+
+    while (current_token.type != TOKEN_EOF)
+    {
+        if (current_token.type == TOKEN_EOL)
+        {
+            match(TOKEN_EOL);
+            continue;
+        }
+        if (current_token.type == TOKEN_ODSAZENI)
+        {
+
+            if (current_token.int_val < pocet_odsazeni)
+            {
+                // Konec bloku
+                return;
+            }
+            else if (current_token.int_val > pocet_odsazeni)
+            {
+                printError(ERR_SYN);
+            }
+            if (current_token.int_val == pocet_odsazeni)
+            {
+                // Pokracuje ve stejnem bloku
+                match(TOKEN_ODSAZENI);
+            }
+        }
+        else
+        {
+            if (pocet_odsazeni > 0)
+            {
+                // Konec bloku, radek nezacina odsazenim, ale jsem v v odsazenem bloku
+                return;
+            }
+        }
+
+        Token id_token;
+
+        switch (current_token.type)
+        {
+        case TOKEN_VAR:
+            match(TOKEN_VAR);
+            id_token = match(TOKEN_ID);
+            if (current_token.type == TOKEN_DVOJTEC)
+            {
+                match(TOKEN_DVOJTEC);
+                match_type();
+            }
+            match(TOKEN_ROVNO);
+            parse_expression();
+
+            break;
+        case TOKEN_VAL:
+            match(TOKEN_VAL);
+            id_token = match(TOKEN_ID);
+            if (current_token.type == TOKEN_DVOJTEC)
+            {
+                match(TOKEN_DVOJTEC);
+                match_type();
+            }
+            match(TOKEN_ROVNO);
+            match(TOKEN_ID);
+            if (current_token.type == TOKEN_LZAVORKA)
+            {
+                // Volání funkce
+                match(TOKEN_LZAVORKA);
+                parse_expression();
+                match(TOKEN_PZAVORKA);
+            }
+            else
+            {
+                parse_expression();
+            }
+
+            break;
+        case TOKEN_IF:
+            match(TOKEN_IF);
+            parse_expression();
+            match(TOKEN_THEN);
+            match(TOKEN_EOL);
+            // Then musí mít větší odsazení než if
+            if (current_token.type != TOKEN_ODSAZENI || current_token.int_val <= pocet_odsazeni)
+            {
+                printError(ERR_SYN);
+            }
+            parse_block();
+            // Else musí mít stejné odsazení jako if!
+            if (current_token.type != TOKEN_ODSAZENI || current_token.int_val != pocet_odsazeni)
+            {
+                printError(ERR_SYN);
+            }
+            match(TOKEN_ODSAZENI);
+            match(TOKEN_ELSE);
+            match(TOKEN_EOL);
+            // Else musí mít větší odsazení než if/else
+            if (current_token.type != TOKEN_ODSAZENI || current_token.int_val <= pocet_odsazeni)
+            {
+                printError(ERR_SYN);
+            }
+            parse_block();
+
+            break;
+        case TOKEN_WHILE:
+            match(TOKEN_WHILE);
+            parse_expression(); // Podmínka
+            match(TOKEN_DO);
+            match(TOKEN_EOL);
+            // Musí být odsazeni s vyšším počtem mezer
+            if (current_token.type != TOKEN_ODSAZENI || current_token.int_val <= pocet_odsazeni)
+            {
+                printError(ERR_SYN);
+            }
+
+            parse_block();
+            break;
+
+        case TOKEN_ID:
+            id_token = match(TOKEN_ID);
+            if (current_token.type == TOKEN_ROVNO)
+            {
+                match(TOKEN_ROVNO);
+                parse_expression();
+            }
+            else if (current_token.type == TOKEN_LZAVORKA)
+            {
+                // Volání funkce
+                match(TOKEN_LZAVORKA);
+                parse_expression();
+                match(TOKEN_PZAVORKA);
+            }
+            else
+            {
+                // Konec bloku
+                parse_expression();
+            }
+
+            break;
+        case TOKEN_RETURN:
+            match(TOKEN_RETURN);
+            if (current_token.type != TOKEN_EOL && current_token.type != TOKEN_EOF)
+            {
+                parse_expression();
+            }
+            break;
+
+        default:
+            printError(ERR_SYN);
+            break;
+        }
+
+        if (current_token.type == TOKEN_EOL)
+        {
+            match(TOKEN_EOL);
+        }
+    }
+}
+
+void read_file_by_tokens()
+{
+    get_n_token();
+
+    while (current_token.type != TOKEN_EOF)
+    {
+        printf("Token name: %s, line: %d, int val: %d, double val: %f, string val: %s\n",
+               getTokenName(current_token.type), current_token.line, current_token.int_val, current_token.double_val,
+               current_token.string);
+        get_n_token();
+    }
+    printf("Token name: %s, line: %d\n", getTokenName(current_token.type), current_token.line);
+
+    printError(ERR_OK);
+}
+
 int parse()
 {
+    // read_file_by_tokens();
+
     // Získání prvního tokenu
     get_n_token();
     // Zpracování: import ifj26.*
@@ -134,31 +314,14 @@ int parse()
     match(TOKEN_NAS);
     match(TOKEN_EOL);
 
-    parse_function();
+    while (current_token.type != TOKEN_EOF)
+    {
+        parse_function();
+    }
 
     return ERR_OK;
 }
 
-// void parse_parameters()
-// {
-//     if (current_token.type == TOKEN_PZAVORKA)
-//     {
-//         return;
-//     }
-//     match(TOKEN_ID);
-//     match(TOKEN_DVOJTEC);
-//     match_type();
-//     if (current_token.type == TOKEN_CARKA)
-//     {
-//         match(TOKEN_CARKA);
-//         if (current_token.type == TOKEN_LZAVORKA)
-//         {
-//             printError(ERR_SYN);
-//         }
-
-//         parse_parameters();
-//     }
-// }
 void parse_parameters()
 {
     if (current_token.type == TOKEN_PZAVORKA)
@@ -203,22 +366,11 @@ void parse_parameters()
 
 void parse_expression()
 {
-}
-
-void parse_statement()
-{
-    switch (current_token.type)
+    printf("EXPRESION\n");
+    while (current_token.type != TOKEN_EOL && current_token.type != TOKEN_DO && current_token.type != TOKEN_THEN &&
+           current_token.type != TOKEN_CARKA && current_token.type != TOKEN_PZAVORKA && current_token.type != TOKEN_EOF)
     {
-    case TOKEN_IF:
-        match(TOKEN_IF);
-        match(TOKEN_ID);
-        parse_expression();
-        match(TOKEN_THEN);
-        break;
-
-    default:
-        printError(ERR_SYN);
-        break;
+        get_n_token();
     }
 }
 
@@ -243,37 +395,16 @@ void parse_function()
 
     match(TOKEN_DEF);
     match(TOKEN_ID);
-    int comma_line = current_token.line;
     match(TOKEN_LZAVORKA);
 
-    if (current_token.line != comma_line)
+    if (main_flag && current_token.type == TOKEN_ID)
     {
-        // Víceřádkové parametry
-        // def foo(
-        //   a: Int,
-        //   b: String, // může být koncová čárka
-        // ): Unit = ()
-        if (main_flag && current_token.type == TOKEN_ID)
-        {
-            printError(ERR_SEM_ARG);
-        }
-        parse_parameters();
+        printError(ERR_SEM_ARG);
     }
-    else
-    {
-        // Jednořádkové parametry
-        // def foo( a: Int, b: String ): Unit = ()
-        if (main_flag && current_token.type == TOKEN_ID)
-        {
-            printError(ERR_SEM_ARG);
-        }
-        parse_parameters();
-    }
+    parse_parameters();
 
     match(TOKEN_PZAVORKA);
 
-    // if (current_token.type == TOKEN_DVOJTEC)
-    //{
     // TODO Více vstupních funkcí na chybu 4. ASI AŽ VE STROMU
     match(TOKEN_DVOJTEC);
     if (main_flag && current_token.type != TOKEN_UNIT)
@@ -281,18 +412,23 @@ void parse_function()
         printError(ERR_SEM_TYPE);
     }
     match_type();
-    //}
     match(TOKEN_ROVNO);
 
     if (current_token.type == TOKEN_EOL)
     {
+        // Odsazený blok
         match(TOKEN_EOL);
-        match(TOKEN_ODSAZENI);
-        // TODO: parse_block()
-        printf("current: %s\n", getTokenName(current_token.type));
+
+        parse_block();
     }
     else
     {
+        // Jednořádková funkce
         parse_expression();
+
+        if (current_token.type == TOKEN_EOL)
+        {
+            match(TOKEN_EOL);
+        }
     }
 }
