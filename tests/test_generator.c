@@ -276,6 +276,55 @@ static int test_labels(void)
     return failed;
 }
 
+static char *capture_print(const char *operand)
+{
+    char *buf = NULL;
+    size_t size = 0;
+
+    FILE *f = open_memstream(&buf, &size);
+    if (f == NULL)
+    {
+        return NULL;
+    }
+
+    gen_init(f);
+    if (operand == NULL)
+    {
+        gen_print_unit();
+    }
+    else
+    {
+        gen_print(operand);
+    }
+    fclose(f);
+
+    return buf;
+}
+
+static int test_print(void)
+{
+    int failed = 0;
+    char *s;
+
+    s = capture_print("int@5");
+    failed += check("print int", s, "WRITE int@5\n");
+    free(s);
+
+    s = capture_print("string@ahoj");
+    failed += check("print string", s, "WRITE string@ahoj\n");
+    free(s);
+
+    s = capture_print("LF@x");
+    failed += check("print promenna", s, "WRITE LF@x\n");
+    free(s);
+
+    s = capture_print(NULL);
+    failed += check("print unit", s, "WRITE string@()\n");
+    free(s);
+
+    return failed;
+}
+
 int main(void)
 {
     int failed = 0;
@@ -286,6 +335,8 @@ int main(void)
     failed += test_write_string();
     failed += test_instr();
     failed += test_labels();
+    failed += test_print();
+
 
     fprintf(stdout, "Fail %d\n", failed);
 
