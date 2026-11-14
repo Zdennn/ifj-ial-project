@@ -235,6 +235,52 @@ static int test_instr(void)
     return failed;
 }
 
+static int test_labels(void)
+{
+    int failed = 0;
+    char *s;
+    char name[64];
+
+    /* každé volání vrací jiné číslo */
+    int id1 = gen_new_label_id();
+    int id2 = gen_new_label_id();
+    if (id1 == id2)
+    {
+        fprintf(stderr, "FAIL: label id se opakuje\n");
+        failed++;
+    }
+    else
+    {
+        fprintf(stdout, "PASS: label id unikatni\n");
+    }
+
+    /* skladani jmena */
+    gen_label_name(name, sizeof(name), "while_start", 3);
+    failed += check("label jmeno", name, "$while_start_3");
+
+    /* oriznuti pri malem bufferu: 5 bajtu = 4 znaky + '\0' */
+    char small[5];
+    gen_label_name(small, sizeof(small), "while_start", 3);
+    failed += check("label jmeno oriznute", small, "$whi");
+
+    /* instrukce LABEL */
+    char *buf = NULL;
+    size_t size = 0;
+    FILE *f = open_memstream(&buf, &size);
+    if (f == NULL)
+    {
+        return failed + 1;
+    }
+    gen_init(f);
+    gen_label("$while_start_3");
+    fclose(f);
+    s = buf;
+    failed += check("gen_label", s, "LABEL $while_start_3\n");
+    free(s);
+
+    return failed;
+}
+
 int main(void)
 {
     int failed = 0;
@@ -244,6 +290,7 @@ int main(void)
     failed += test_write_float();
     failed += test_write_string();
     failed += test_instr();
+    failed += test_labels();
 
     fprintf(stdout, "Fail %d\n", failed);
 
