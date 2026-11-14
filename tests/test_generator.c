@@ -138,6 +138,60 @@ static int test_write_float(void)
     return failed;
 }  
 
+static char *capture_string(const char *str)
+{
+    char *buf = NULL;
+    size_t size = 0;
+
+    FILE *f = open_memstream(&buf, &size);
+    if (f == NULL)
+    {
+        return NULL;
+    }
+
+    gen_init(f);
+    gen_write_string(str);
+    fclose(f);
+
+    return buf;
+}
+
+static int test_write_string(void)
+{
+    int failed = 0;
+    char *s;
+
+    s = capture_string("ahoj");
+    failed += check("string ahoj", s, "string@ahoj");
+    free(s);
+
+    s = capture_string("");
+    failed += check("string prazdny", s, "string@");
+    free(s);
+
+    s = capture_string("a b");
+    failed += check("string mezera", s, "string@a\\032b");
+    free(s);
+
+    s = capture_string("a\nb");
+    failed += check("string novy radek", s, "string@a\\010b");
+    free(s);
+
+    s = capture_string("a#b");
+    failed += check("string mrizka", s, "string@a\\035b");
+    free(s);
+
+    s = capture_string("a\\b");
+    failed += check("string zpetne lomitko", s, "string@a\\092b");
+    free(s);
+
+    s = capture_string("retezec s lomitkem \\ a\nnovym#radkem");
+    failed += check("string priklad ze zadani", s,
+                    "string@retezec\\032s\\032lomitkem\\032\\092\\032a\\010novym\\035radkem");
+    free(s);
+
+    return failed;
+}
 
 int main(void)
 {
@@ -146,6 +200,7 @@ int main(void)
     failed += test_header();
     failed += test_write_int();
     failed += test_write_float();
+    failed += test_write_string();
 
     fprintf(stdout, "Fail %d\n", failed);
 
