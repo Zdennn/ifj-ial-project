@@ -17,7 +17,7 @@ void gen_init(FILE *out)
 {
     if (out == NULL)
     {
-        fprintf(stderr,"generator: gen_init dostal out NULL\n");
+        fprintf(stderr,"generator: gen_init dostal NULL\n");
         exit(ERR_INTERNAL);
     }
 
@@ -33,4 +33,6 @@ void gen_header(void)
     }
     
     fprintf(out_stream,".IFJcode26\n");
+
+    
 }
