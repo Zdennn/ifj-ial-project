@@ -56,5 +56,24 @@ void gen_write_string(const char *str);
  */
 void gen_instr(const char *opcode, const char *a, const char *b, const char *c);
 
+/**
+ * @brief Vrátí nové unikátní číslo pro návěští (počítadlo roste při každém volání).
+ * @return Unikátní nezáporné číslo.
+ */
+int gen_new_label_id(void);
 
+/**
+ * @brief Složí jméno návěští ve tvaru $<prefix>_<id> do zadaného bufferu.
+ * @param buf    Cílový buffer, nesmí být NULL.
+ * @param size   Velikost bufferu v bajtech.
+ * @param prefix Popisná předpona (např. "while_start"), nesmí být NULL.
+ * @param id     Číslo z gen_new_label_id().
+ */
+void gen_label_name(char *buf, size_t size, const char *prefix, int id);
+
+/**
+ * @brief Vypíše instrukci LABEL se zadaným jménem.
+ * @param name Jméno návěští, nesmí být NULL.
+ */
+void gen_label(const char *name);
 #endif

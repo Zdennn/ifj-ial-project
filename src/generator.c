@@ -103,3 +103,33 @@ void gen_instr(const char *opcode, const char *a, const char *b, const char *c)
 
     fputc('\n', out_stream);
 }
+
+int gen_new_label_id(void)
+{
+    static int label_counter = 0;
+    label_counter++;
+
+    return label_counter;
+}
+
+void gen_label_name(char *buf, size_t size, const char *prefix, int id)
+{
+    if (buf == NULL || prefix == NULL)
+    {
+        fprintf(stderr,"gen: gen_label_name dostal NULL za buf nebo prefix");
+        exit(ERR_INTERNAL);
+    }else
+    {
+        snprintf(buf, size, "$%s_%d", prefix, id);
+    }    
+}
+
+void gen_label(const char *name)
+{
+    if (name == NULL)
+    {
+        fprintf(stderr,"gen: gen_label dostal NULL");
+        exit(ERR_INTERNAL);
+    }
+    gen_instr("LABEL", name, NULL, NULL);
+}
