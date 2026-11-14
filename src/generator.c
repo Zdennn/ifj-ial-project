@@ -137,3 +137,19 @@ void gen_label(const char *name)
 
     gen_instr("LABEL", name, NULL, NULL);
 }
+
+void gen_print(const char *operand)
+{
+    if (operand == NULL)
+    {
+        fprintf(stderr, "gen: gen_print dostal NULL\n");
+        exit(ERR_INTERNAL);
+    }
+
+    gen_instr("WRITE", operand, NULL, NULL);
+}
+
+void gen_print_unit(void)
+{
+    gen_instr("WRITE", "string@()", NULL, NULL);
+}

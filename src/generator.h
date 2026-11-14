@@ -76,4 +76,18 @@ void gen_label_name(char *buf, size_t size, const char *prefix, int id);
  * @param name Jméno návěští, nesmí být NULL.
  */
 void gen_label(const char *name);
+
+/**
+ * @brief Vygeneruje výpis jedné hodnoty (vestavěná funkce print) pro Int, Double nebo String.
+ * @param operand Operand instrukce WRITE (např. "int@5", "string@ahoj", "LF@x"), nesmí být NULL.
+ */
+void gen_print(const char *operand);
+
+/**
+ * @brief Vygeneruje výpis hodnoty () typu Unit, tedy řetězce "()".
+ */
+void gen_print_unit(void);
+
+
+
 #endif
