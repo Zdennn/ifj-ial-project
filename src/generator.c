@@ -51,3 +51,29 @@ void gen_write_float(double value)
     require_stream();
     fprintf(out_stream,"float@%a", value);
 }
+
+void gen_write_string(const char *str)
+{
+    require_stream();
+
+    if (str == NULL)
+    {
+        fprintf(stderr,"gen: gen_write_string má prazdný str");
+        exit(ERR_INTERNAL);
+    }
+
+    fprintf(out_stream, "string@");
+
+    for (const unsigned char *p = (const unsigned char *)str; *p != '\0'; p++)
+    {
+        if (*p <= 32 || *p == 35 || *p == 92)
+        {
+            fprintf(out_stream, "\\%03d", *p);
+        }else
+        {
+            fputc(*p, out_stream);
+        }
+        
+        
+    }
+}

@@ -35,5 +35,12 @@ void gen_write_int(int value);
  */
 void gen_write_float(double value);
 
+/**
+ * @brief Vypíše řetězcový operand ve tvaru string@<hodnota>.
+ *        Znaky s kódem 0-32, 35 a 92 zapisuje jako escape sekvenci \xyz.
+ * @param str Řetězec zakončený nulou, nesmí být NULL.
+ */
+void gen_write_string(const char *str);
+
 
 #endif
