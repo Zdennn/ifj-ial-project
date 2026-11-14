@@ -36,14 +36,18 @@ void gen_init(FILE *out)
 
 void gen_header(void)
 {
-    require_stream();
-    
+    require_stream();   
     fprintf(out_stream,".IFJcode26\n");
 }
 
 void gen_write_int(int value)
 {
     require_stream();
-
     fprintf(out_stream, "int@%d", value);
+}
+
+void gen_write_float(double value)
+{
+    require_stream();
+    fprintf(out_stream,"float@%a", value);
 }

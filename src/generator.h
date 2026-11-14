@@ -19,7 +19,7 @@
 void gen_init(FILE *out);
 
 /**
- * @brief Vypíše úvodní řádek .IFJcode26 (sekce 7 zadání).
+ * @brief Vypíše úvodní řádek .IFJcode26.
  */
 void gen_header(void);
 
@@ -28,6 +28,12 @@ void gen_header(void);
  * @param value Hodnota typu Int.
  */
 void gen_write_int(int value);
+
+/**
+ * @brief Vypíše desetinný operand ve tvaru float@<hodnota> (formát %a, bez odřádkování).
+ * @param value Hodnota typu Double.
+ */
+void gen_write_float(double value);
 
 
 #endif
