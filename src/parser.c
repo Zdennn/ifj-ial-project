@@ -11,15 +11,21 @@
 #include "parser.h"
 #include "error.h"
 #include "scanner.h"
+#include "symtable.h"
 #include "token.h"
+#include "token_array.h"
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// TODO main def run() : Unit = () ====> parser nevezme druhou )
+
 Token current_token;
+TokenArray tokens;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 const char *getTokenName(TokenType type)
 {
     static const char *TokenNames[] = {[TOKEN_EOF] = "TOKEN_EOF",
@@ -81,6 +87,25 @@ ErrorCodes get_n_token()
     return ERR_OK;
 }
 
+int token_index = 0;
+void get_next_token_from_array()
+{
+    // printf("token index: %d\n", token_index);
+    if (token_index < tokens.count)
+    {
+        current_token = tokens.items[token_index++];
+        // printf("current: %s\n", getTokenName(current_token.type));
+    }
+    else
+    {
+        current_token = tokens.items[tokens.count - 1];
+    }
+}
+void reset_parser_position()
+{
+    token_index = 0;
+}
+
 Token match(TokenType expected)
 {
     printf("current: %s, expected: %s, line: %d\n", getTokenName(current_token.type), getTokenName(expected),
@@ -88,7 +113,7 @@ Token match(TokenType expected)
     if (current_token.type == expected)
     {
         Token old_token = current_token;
-        get_n_token();
+        get_next_token_from_array();
         return old_token;
     }
     else
@@ -97,24 +122,48 @@ Token match(TokenType expected)
     }
     return (Token){0};
 }
-void match_type()
+
+Token match_type()
 {
     switch (current_token.type)
     {
     case TOKEN_INT:
-        match(TOKEN_INT);
+        return match(TOKEN_INT);
         break;
     case TOKEN_DOUBLE:
-        match(TOKEN_DOUBLE);
+        return match(TOKEN_DOUBLE);
         break;
     case TOKEN_STRING:
-        match(TOKEN_STRING);
+        return match(TOKEN_STRING);
         break;
     case TOKEN_UNIT:
-        match(TOKEN_UNIT);
+        return match(TOKEN_UNIT);
         break;
     default:
         printError(ERR_SYN);
+        return (Token){0};
+        break;
+    }
+}
+DataType token_to_dataType(Token token)
+{
+    switch (token.type)
+    {
+    case TOKEN_INT:
+        return TYPE_INT;
+        break;
+    case TOKEN_DOUBLE:
+        return TYPE_DOUBLE;
+        break;
+    case TOKEN_STRING:
+        return TYPE_STRING;
+        break;
+    case TOKEN_UNIT:
+        return TYPE_UNIT;
+        break;
+    default:
+        printError(ERR_SYN);
+        return (DataType){0};
         break;
     }
 }
@@ -160,25 +209,55 @@ void parse_block()
             }
         }
 
-        Token id_token;
+        Token token_id;
+        Token token_type = {0};
 
         switch (current_token.type)
         {
         case TOKEN_VAR:
             match(TOKEN_VAR);
-            id_token = match(TOKEN_ID);
+            token_id = match(TOKEN_ID);
+
+            if (symtable_lookup_current(token_id.string) != NULL)
+            {
+                printError(ERR_SEM_REDEF);
+            }
+
             if (current_token.type == TOKEN_DVOJTEC)
             {
                 match(TOKEN_DVOJTEC);
-                match_type();
+                token_type = match_type();
             }
             match(TOKEN_ROVNO);
-            parse_expression();
+            DataType type_of_expresion = parse_expression();
+            DataType final_var_type;
+            if (token_type.type == TOKEN_EOF) // token_type = {0}, typ nebyl uveden
+            {
+                final_var_type = type_of_expresion;
+            }
+            else // token_type != {0}, typ byl uveden
+            {
+                DataType declared_type = token_to_dataType(token_type);
 
-            break;
+                if (type_of_expresion == declared_type)
+                {
+                    final_var_type = declared_type;
+                }
+                else if (type_of_expresion == TYPE_INT && declared_type == TYPE_DOUBLE)
+                {
+                    final_var_type = TYPE_DOUBLE;
+                }
+                else
+                {
+                    printError(ERR_SEM_TYPE);
+                }
+            }
+            symtable_insert_var(token_id.string, final_var_type, true);
+
+            break; ////////////////////////////////////////////////////////// TODO TADY POKRACOVAT
         case TOKEN_VAL:
             match(TOKEN_VAL);
-            id_token = match(TOKEN_ID);
+            token_id = match(TOKEN_ID);
             if (current_token.type == TOKEN_DVOJTEC)
             {
                 match(TOKEN_DVOJTEC);
@@ -241,7 +320,7 @@ void parse_block()
             break;
 
         case TOKEN_ID:
-            id_token = match(TOKEN_ID);
+            token_id = match(TOKEN_ID);
             if (current_token.type == TOKEN_ROVNO)
             {
                 match(TOKEN_ROVNO);
@@ -250,6 +329,11 @@ void parse_block()
             else if (current_token.type == TOKEN_LZAVORKA)
             {
                 // Volání funkce
+                if (symtable_lookup(token_id.string) == NULL)
+                {
+                    printError(ERR_SEM_UNDEF);
+                }
+                // TODO sedí parametry (chyba 5) a jaký typ funkce vrací (chyba 6)??
                 match(TOKEN_LZAVORKA);
                 parse_expression();
                 match(TOKEN_PZAVORKA);
@@ -283,26 +367,25 @@ void parse_block()
 
 void read_file_by_tokens()
 {
+    token_array_init(&tokens);
     get_n_token();
 
     while (current_token.type != TOKEN_EOF)
     {
-        printf("Token name: %s, line: %d, int val: %d, double val: %f, string val: %s\n",
-               getTokenName(current_token.type), current_token.line, current_token.int_val, current_token.double_val,
-               current_token.string);
+        // printf("Token name: %s, line: %d, int val: %d, double val: %f, string val: %s\n",
+        //        getTokenName(current_token.type), current_token.line, current_token.int_val, current_token.double_val,
+        //        current_token.string);
+        token_array_append(&tokens, current_token);
         get_n_token();
     }
-    printf("Token name: %s, line: %d\n", getTokenName(current_token.type), current_token.line);
-
-    printError(ERR_OK);
+    // printf("Token name: %s, line: %d\n", getTokenName(current_token.type), current_token.line);
+    token_array_append(&tokens, current_token);
 }
 
-int parse()
+void beginning()
 {
-    // read_file_by_tokens();
-
     // Získání prvního tokenu
-    get_n_token();
+    get_next_token_from_array();
     // Zpracování: import ifj26.*
     match(TOKEN_IMPORT);
     Token id = match(TOKEN_ID);
@@ -313,68 +396,11 @@ int parse()
     match(TOKEN_TECKA);
     match(TOKEN_NAS);
     match(TOKEN_EOL);
-
-    while (current_token.type != TOKEN_EOF)
-    {
-        parse_function();
-    }
-
-    return ERR_OK;
 }
 
-void parse_parameters()
-{
-    if (current_token.type == TOKEN_PZAVORKA)
-    {
-        return;
-    }
-    match(TOKEN_ID);
-    match(TOKEN_DVOJTEC);
-    match_type();
+int pocet_main = 0;
 
-    if (current_token.type == TOKEN_CARKA)
-    {
-        int comma_line = current_token.line;
-        match(TOKEN_CARKA);
-
-        if (current_token.type == TOKEN_PZAVORKA)
-        {
-            if (current_token.line == comma_line)
-            {
-                printError(ERR_SYN);
-            }
-            return;
-        }
-        if (current_token.type == TOKEN_ID)
-        {
-            parse_parameters();
-        }
-        else
-        {
-            printError(ERR_SYN);
-        }
-    }
-    else if (current_token.type == TOKEN_PZAVORKA)
-    {
-        return;
-    }
-    else
-    {
-        printError(ERR_SYN);
-    }
-}
-
-void parse_expression()
-{
-    printf("EXPRESION\n");
-    while (current_token.type != TOKEN_EOL && current_token.type != TOKEN_DO && current_token.type != TOKEN_THEN &&
-           current_token.type != TOKEN_CARKA && current_token.type != TOKEN_PZAVORKA && current_token.type != TOKEN_EOF)
-    {
-        get_n_token();
-    }
-}
-
-void parse_function()
+ErrorCodes define_function_header()
 {
     bool main_flag = false;
 
@@ -389,7 +415,12 @@ void parse_function()
         if (current_token.type == TOKEN_ID && current_token.string != NULL && strcmp(current_token.string, "main") == 0)
         {
             match(TOKEN_ID);
-            main_flag = true;
+            pocet_main++;
+
+            if (pocet_main > 1)
+            {
+                printError(ERR_SEM_REDEF);
+            }
         }
         else
         {
@@ -398,24 +429,185 @@ void parse_function()
     }
 
     match(TOKEN_DEF);
-    match(TOKEN_ID);
+
+    char *name = match(TOKEN_ID).string;
+
+    printf("%s\n", name);
+
+    SymbolData *symbol = symtable_lookup(name);
+    if (symbol != NULL)
+    {
+        printError(ERR_SEM_REDEF);
+    }
+
     match(TOKEN_LZAVORKA);
 
     if (main_flag && current_token.type == TOKEN_ID)
     {
         printError(ERR_SEM_ARG);
     }
-    parse_parameters();
+
+    int out_param_count = 0;
+    DataType *param_types = parse_parameters(&out_param_count);
 
     match(TOKEN_PZAVORKA);
 
-    // TODO Více vstupních funkcí na chybu 4. ASI AŽ VE STROMU
     match(TOKEN_DVOJTEC);
     if (main_flag && current_token.type != TOKEN_UNIT)
     {
         printError(ERR_SEM_TYPE);
     }
-    match_type();
+    Token return_type_token = match_type();
+
+    printf("Zapsi to symtable\n");
+    symtable_insert_function(name, token_to_dataType(return_type_token), sizeof(param_types), param_types, main_flag);
+
+    match(TOKEN_ROVNO);
+
+    while (current_token.type != TOKEN_ZAVINAC && current_token.type != TOKEN_DEF && current_token.type != TOKEN_EOF)
+    {
+        get_next_token_from_array();
+    }
+
+    return 0;
+}
+
+ErrorCodes parse()
+{
+    read_file_by_tokens();
+
+    symtable_init();
+
+    beginning();
+
+    while (current_token.type != TOKEN_EOF)
+    {
+        define_function_header();
+    }
+    if (pocet_main == 0)
+    {
+        printError(ERR_SEM_UNDEF);
+    }
+
+    printf("Konec privniho cteni\n");
+
+    reset_parser_position();
+    beginning();
+
+    while (current_token.type != TOKEN_EOF)
+    {
+        parse_function();
+    }
+
+    return ERR_OK;
+}
+
+DataType *parse_parameters(int *out_param_count)
+{
+
+    *out_param_count = 0;
+    if (current_token.type == TOKEN_PZAVORKA)
+    {
+        return NULL;
+    }
+
+    int capacity = 4;
+    DataType *typy_parametru = malloc(capacity * sizeof(DataType));
+    if (typy_parametru == NULL)
+    {
+        printError(ERR_INTERNAL);
+    }
+
+    while (true)
+    {
+        match(TOKEN_ID);
+        match(TOKEN_DVOJTEC);
+        Token param_type_token = match_type();
+        if (*out_param_count >= capacity)
+        {
+            capacity *= 2;
+            DataType *temp = realloc(typy_parametru, capacity * sizeof(DataType));
+            if (temp == NULL)
+            {
+                free(typy_parametru);
+                printError(ERR_INTERNAL);
+                return NULL;
+            }
+            typy_parametru = temp;
+        }
+        typy_parametru[*out_param_count] = token_to_dataType(param_type_token);
+        (*out_param_count)++;
+
+        if (current_token.type == TOKEN_CARKA)
+        {
+            int comma_line = current_token.line;
+            match(TOKEN_CARKA);
+
+            if (current_token.type == TOKEN_PZAVORKA)
+            {
+                if (current_token.line == comma_line)
+                {
+                    printError(ERR_SYN);
+                }
+                break;
+            }
+            else if (current_token.type != TOKEN_ID)
+            {
+                printError(ERR_SYN);
+            }
+        }
+        else if (current_token.type == TOKEN_PZAVORKA)
+        {
+            break;
+        }
+        else
+        {
+            printError(ERR_SYN);
+        }
+    }
+    return typy_parametru;
+}
+
+DataType parse_expression()
+{
+    // TODO !!!
+    printf("EXPRESION\n");
+    while (current_token.type != TOKEN_EOL && current_token.type != TOKEN_DO && current_token.type != TOKEN_THEN &&
+           current_token.type != TOKEN_CARKA && current_token.type != TOKEN_PZAVORKA && current_token.type != TOKEN_EOF)
+    {
+        get_next_token_from_array();
+    }
+
+    return (DataType){0};
+}
+
+void parse_function()
+{
+    symtable_push_scope();
+
+    while (current_token.type != TOKEN_LZAVORKA)
+    {
+        get_next_token_from_array();
+    }
+
+    match(TOKEN_LZAVORKA);
+
+    while (current_token.type != TOKEN_PZAVORKA)
+    {
+        Token token_name = match(TOKEN_ID);
+        match(TOKEN_DVOJTEC);
+        Token token_type = match_type();
+        symtable_insert_var(token_name.string, token_to_dataType(token_type), false);
+        if (current_token.type == TOKEN_CARKA)
+        {
+            match(TOKEN_CARKA);
+        }
+    }
+
+    match(TOKEN_PZAVORKA);
+
+    match(TOKEN_DVOJTEC);
+    Token return_type_token = match_type();
     match(TOKEN_ROVNO);
 
     if (current_token.type == TOKEN_EOL)
@@ -435,4 +627,6 @@ void parse_function()
             match(TOKEN_EOL);
         }
     }
+
+    symtable_pop_scope();
 }
