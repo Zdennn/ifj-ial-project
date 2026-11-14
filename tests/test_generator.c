@@ -193,6 +193,48 @@ static int test_write_string(void)
     return failed;
 }
 
+static char *capture_instr(const char *opcode, const char *a, const char *b, const char *c)
+{
+    char *buf = NULL;
+    size_t size = 0;
+
+    FILE *f = open_memstream(&buf, &size);
+    if (f == NULL)
+    {
+        return NULL;
+    }
+
+    gen_init(f);
+    gen_instr(opcode, a, b, c);
+    fclose(f);
+
+    return buf;
+}
+
+static int test_instr(void)
+{
+    int failed = 0;
+    char *s;
+
+    s = capture_instr("CREATEFRAME", NULL, NULL, NULL);
+    failed += check("instr bez operandu", s, "CREATEFRAME\n");
+    free(s);
+
+    s = capture_instr("WRITE", "string@ahoj", NULL, NULL);
+    failed += check("instr jeden operand", s, "WRITE string@ahoj\n");
+    free(s);
+
+    s = capture_instr("MOVE", "LF@x", "int@5", NULL);
+    failed += check("instr dva operandy", s, "MOVE LF@x int@5\n");
+    free(s);
+
+    s = capture_instr("ADD", "LF@x", "LF@a", "int@5");
+    failed += check("instr tri operandy", s, "ADD LF@x LF@a int@5\n");
+    free(s);
+
+    return failed;
+}
+
 int main(void)
 {
     int failed = 0;
@@ -201,6 +243,7 @@ int main(void)
     failed += test_write_int();
     failed += test_write_float();
     failed += test_write_string();
+    failed += test_instr();
 
     fprintf(stdout, "Fail %d\n", failed);
 
