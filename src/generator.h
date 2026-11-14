@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 
+
 /* Nastaví výstup, do kterého se generuje kód (stdout nebo soubor dle testu) */
 void gen_init(FILE *out);
 
