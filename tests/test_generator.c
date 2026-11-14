@@ -95,12 +95,57 @@ static int test_write_int(void)
     return failed;
 }
 
+static char *capture_float(double value)
+{
+    char *buf = NULL;
+    size_t size = 0;
+
+    FILE *f = open_memstream(&buf, &size);
+
+    if (f == NULL)
+    {
+        return NULL;    
+    }
+    
+    gen_init(f);
+    gen_write_float(value);
+    fclose(f);
+
+    return buf;
+}
+
+static int test_write_float(void)
+{
+    int failed = 0;
+    char *s;
+
+    s = capture_float(1.0);
+    failed += check("float 1.0", s, "float@0x1p+0");
+    free(s);
+
+    s = capture_float(0.0);
+    failed += check("float 0.0", s, "float@0x0p+0");
+    free(s);
+
+    s = capture_float(-2.5);
+    failed += check("float -2.5", s, "float@-0x1.4p+1");
+    free(s);
+
+    s = capture_float(1.1);
+    failed += check("float 1.1", s, "float@0x1.199999999999ap+0");
+    free(s);
+
+    return failed;
+}  
+
+
 int main(void)
 {
     int failed = 0;
-    
+
     failed += test_header();
     failed += test_write_int();
+    failed += test_write_float();
 
     fprintf(stdout, "Fail %d\n", failed);
 
