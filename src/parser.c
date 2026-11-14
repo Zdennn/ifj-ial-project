@@ -378,10 +378,14 @@ void parse_function()
 {
     bool main_flag = false;
 
-    // TODO Anotace může být na samostatném řádku nebo na stejném řádku s klíčovým slovem def
     if (current_token.type == TOKEN_ZAVINAC)
     {
         match(TOKEN_ZAVINAC);
+        if (current_token.type == TOKEN_EOL)
+        {
+            match(TOKEN_EOL);
+        }
+
         if (current_token.type == TOKEN_ID && current_token.string != NULL && strcmp(current_token.string, "main") == 0)
         {
             match(TOKEN_ID);
