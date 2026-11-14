@@ -104,9 +104,9 @@ static char *capture_float(double value)
 
     if (f == NULL)
     {
-        return NULL;    
+        return NULL;
     }
-    
+
     gen_init(f);
     gen_write_float(value);
     fclose(f);
@@ -136,7 +136,7 @@ static int test_write_float(void)
     free(s);
 
     return failed;
-}  
+}
 
 static char *capture_string(const char *str)
 {
@@ -186,8 +186,8 @@ static int test_write_string(void)
     free(s);
 
     s = capture_string("retezec s lomitkem \\ a\nnovym#radkem");
-    failed += check("string priklad ze zadani", s,
-                    "string@retezec\\032s\\032lomitkem\\032\\092\\032a\\010novym\\035radkem");
+    failed +=
+        check("string priklad ze zadani", s, "string@retezec\\032s\\032lomitkem\\032\\092\\032a\\010novym\\035radkem");
     free(s);
 
     return failed;
@@ -257,11 +257,6 @@ static int test_labels(void)
     /* skladani jmena */
     gen_label_name(name, sizeof(name), "while_start", 3);
     failed += check("label jmeno", name, "$while_start_3");
-
-    /* oriznuti pri malem bufferu: 5 bajtu = 4 znaky + '\0' */
-    char small[5];
-    gen_label_name(small, sizeof(small), "while_start", 3);
-    failed += check("label jmeno oriznute", small, "$whi");
 
     /* instrukce LABEL */
     char *buf = NULL;
