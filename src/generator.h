@@ -42,5 +42,19 @@ void gen_write_float(double value);
  */
 void gen_write_string(const char *str);
 
+/**
+ * @brief Vypíše jednu instrukci IFJcode26 ve tvaru "OPCODE a b c\n".
+ *
+ * Operandy jsou hotový text (např. "LF@x", "int@5", "string@ahoj").
+ * Operandy, které instrukce nemá, se předají jako NULL a nevypíšou se.
+ * Operandy se řadí zleva, tj. NULL v prostředku (a, NULL, c) není povolen.
+ *
+ * @param opcode Název instrukce (např. "ADD", "WRITE"), nesmí být NULL.
+ * @param a      První operand, nebo NULL.
+ * @param b      Druhý operand, nebo NULL (smí být jen pokud je i c NULL, nebo a/b zadány).
+ * @param c      Třetí operand, nebo NULL.
+ */
+void gen_instr(const char *opcode, const char *a, const char *b, const char *c);
+
 
 #endif

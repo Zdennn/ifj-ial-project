@@ -72,8 +72,34 @@ void gen_write_string(const char *str)
         }else
         {
             fputc(*p, out_stream);
-        }
-        
-        
+        }   
+    }   
+}
+
+void gen_instr(const char *opcode, const char *a, const char *b, const char *c)
+{
+    require_stream();
+
+    if (opcode == NULL)
+    {
+        fprintf(stderr, "gen: gen_instr dostal opcode NULL\n");
+        exit(ERR_INTERNAL);
     }
+
+    fprintf(out_stream, "%s", opcode);
+
+    if (a != NULL)
+    {
+        fprintf(out_stream, " %s", a);
+    }
+    if (b != NULL)
+    {
+        fprintf(out_stream, " %s", b);
+    }
+    if (c != NULL)
+    {
+        fprintf(out_stream, " %s", c);
+    }
+
+    fputc('\n', out_stream);
 }
