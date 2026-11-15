@@ -33,6 +33,25 @@ static int check(const char *name, const char *got, const char *expected)
     }
 }
 
+/* Ověří, že výstup obsahuje očekávaný úsek textu. Vrací 0 při shodě, jinak 1. */
+static int check_contains(const char *name, const char *got, const char *expected_part)
+{
+    if (name == NULL || got == NULL || expected_part == NULL)
+    {
+        fprintf(stderr, "test: check_contains dostal NULL parametr\n");
+        return 1;
+    }
+
+    if (strstr(got, expected_part) != NULL)
+    {
+        fprintf(stdout, "PASS: %s\n", name);
+        return 0;
+    }
+
+    fprintf(stderr, "FAIL: %s\n expected to contain:[%s]\n  got:[%s]\n", name, expected_part, got);
+    return 1;
+}
+
 static int test_header(void)
 {
     char *buf = NULL;
@@ -618,6 +637,64 @@ static int test_while(void)
     return failed;
 }
 
+static int test_builtins(void)
+{
+    int failed = 0;
+    char *s;
+
+    cap_begin();
+    gen_builtins();
+    s = cap_end();
+
+    failed += check_contains("builtin print", s,
+                             "LABEL $func_print\n"
+                             "PUSHFRAME\n"
+                             "WRITE LF@$p0\n"
+                             "MOVE GF@$retval string@()\n"
+                             "POPFRAME\n"
+                             "RETURN\n");
+
+    failed += check_contains("builtin readInt", s,
+                             "LABEL $func_readInt\n"
+                             "PUSHFRAME\n"
+                             "DEFVAR LF@$r\n"
+                             "READ LF@$r int\n"
+                             "JUMPIFNEQ $readInt_ok LF@$r nil@nil\n"
+                             "MOVE LF@$r int@0\n"
+                             "LABEL $readInt_ok\n"
+                             "MOVE GF@$retval LF@$r\n"
+                             "POPFRAME\n"
+                             "RETURN\n");
+
+    failed += check_contains("builtin readDouble", s,
+                             "LABEL $func_readDouble\n"
+                             "PUSHFRAME\n"
+                             "DEFVAR LF@$r\n"
+                             "READ LF@$r float\n"
+                             "JUMPIFNEQ $readDouble_ok LF@$r nil@nil\n"
+                             "MOVE LF@$r float@0x0p+0\n"
+                             "LABEL $readDouble_ok\n"
+                             "MOVE GF@$retval LF@$r\n"
+                             "POPFRAME\n"
+                             "RETURN\n");
+
+    failed += check_contains("builtin readLine", s,
+                             "LABEL $func_readLine\n"
+                             "PUSHFRAME\n"
+                             "DEFVAR LF@$r\n"
+                             "READ LF@$r string\n"
+                             "JUMPIFNEQ $readLine_ok LF@$r nil@nil\n"
+                             "MOVE LF@$r string@\n"
+                             "LABEL $readLine_ok\n"
+                             "MOVE GF@$retval LF@$r\n"
+                             "POPFRAME\n"
+                             "RETURN\n");
+
+    free(s);
+
+    return failed;
+}
+
 int main(void)
 {
     int failed = 0;
@@ -633,6 +710,7 @@ int main(void)
     failed += test_expressions();
     failed += test_if();
     failed += test_while();
+    failed += test_builtins();
 
 
     fprintf(stdout, "Fail %d\n", failed);

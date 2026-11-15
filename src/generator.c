@@ -603,3 +603,37 @@ void gen_while_end(int id)
     gen_instr("JUMP", start_label, NULL, NULL);
     gen_label(end_label);
 }
+
+/* print(value: Any): Unit. WRITE pozná typ za běhu, Unit je reprezentován jako string@(). */
+static void builtin_print(void)
+{
+    gen_function_begin("print");
+    gen_instr("WRITE", "LF@$p0", NULL, NULL);
+    gen_function_return_unit();
+    gen_function_end();
+}
+
+/* Společná šablona pro readLine, readInt a readDouble.
+ * type je typ pro instrukci READ, zero je hodnota, která se vrátí při chybě nebo EOF. */
+static void builtin_read(const char *name, const char *type, const char *zero)
+{
+    char label[GEN_NAME_MAX];
+    snprintf(label, sizeof(label), "$%s_ok", name);
+
+    gen_function_begin(name);
+    gen_defvar_local("$r");
+    gen_instr("READ", "LF@$r", type, NULL);
+    gen_instr("JUMPIFNEQ", label, "LF@$r", "nil@nil");
+    gen_instr("MOVE", "LF@$r", zero, NULL);
+    gen_label(label);
+    gen_function_return("LF@$r");
+    gen_function_end();
+}
+
+void gen_builtins(void)
+{
+    builtin_print();
+    builtin_read("readLine", "string", "string@");
+    builtin_read("readInt", "int", "int@0");
+    builtin_read("readDouble", "float", "float@0x0p+0");
+}

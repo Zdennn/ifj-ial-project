@@ -266,4 +266,11 @@ void gen_while_cond(int id);
  */
 void gen_while_end(int id);
 
+/**
+ * @brief Vygeneruje definice všech vestavěných funkcí (print, readLine, readInt, readDouble,
+ *        toStr, toInt, strLength, subStr, ord, chr). Volá se jednou, za gen_program_start.
+ *        Volají se stejně jako uživatelské funkce přes gen_call.
+ */
+void gen_builtins(void);
+
 #endif
