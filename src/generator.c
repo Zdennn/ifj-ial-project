@@ -153,3 +153,144 @@ void gen_print_unit(void)
 {
     gen_instr("WRITE", "string@()", NULL, NULL);
 }
+
+/* Ukončí překladač s interní chybou a hláškou na stderr. */
+static void internal_error(const char *msg)
+{
+    fprintf(stderr, "gen: %s\n", msg);
+    exit(ERR_INTERNAL);
+}
+
+void gen_var(char *buf, size_t size, const char *frame, const char *name)
+{
+    if (buf == NULL || frame == NULL || name == NULL)
+    {
+        internal_error("gen_var dostal NULL");
+    }
+
+    int n = snprintf(buf, size, "%s@%s", frame, name);
+    if (n < 0 || (size_t)n >= size)
+    {
+        internal_error("gen_var, buffer je maly");
+    }
+}
+
+void gen_func_label(char *buf, size_t size, const char *name)
+{
+    if (buf == NULL || name == NULL)
+    {
+        internal_error("gen_func_label dostal NULL");
+    }
+
+    int n = snprintf(buf, size, "$func_%s", name);
+    if (n < 0 || (size_t)n >= size)
+    {
+        internal_error("gen_func_label, buffer je maly");
+    }
+}
+
+void gen_program_start(const char *main_name)
+{
+    if (main_name == NULL)
+    {
+        internal_error("gen_program_start dostal NULL");
+    }
+
+    char label[GEN_NAME_MAX];
+    gen_func_label(label, sizeof(label), main_name);
+
+    gen_instr("DEFVAR", "GF@$retval", NULL, NULL);
+    gen_instr("JUMP", label, NULL, NULL);
+}
+
+void gen_function_begin(const char *name)
+{
+    if (name == NULL)
+    {
+        internal_error("gen_function_begin dostal NULL");
+    }
+
+    char label[GEN_NAME_MAX];
+    gen_func_label(label, sizeof(label), name);
+
+    gen_instr("LABEL", label, NULL, NULL);
+    gen_instr("PUSHFRAME", NULL, NULL, NULL);
+}
+
+void gen_defvar_local(const char *name)
+{
+    char var[GEN_NAME_MAX];
+    gen_var(var, sizeof(var), "LF", name);
+    gen_instr("DEFVAR", var, NULL, NULL);
+}
+
+void gen_function_return(const char *value)
+{
+    if (value == NULL)
+    {
+        internal_error("gen_function_return dostal NULL");
+    }
+
+    gen_instr("MOVE", "GF@$retval", value, NULL);
+    gen_instr("POPFRAME", NULL, NULL, NULL);
+    gen_instr("RETURN", NULL, NULL, NULL);
+}
+
+void gen_function_return_unit(void)
+{
+    gen_function_return("string@()");
+}
+
+void gen_push(const char *operand)
+{
+    if (operand == NULL)
+    {
+        internal_error("gen_push dostal NULL");
+    }
+
+    gen_instr("PUSHS", operand, NULL, NULL);
+}
+
+void gen_pop(const char *var)
+{
+    if (var == NULL)
+    {
+        internal_error("gen_pop dostal NULL");
+    }
+
+    gen_instr("POPS", var, NULL, NULL);
+}
+
+void gen_push_retval(void)
+{
+    gen_instr("PUSHS", "GF@$retval", NULL, NULL);
+}
+
+void gen_call(const char *name, const char *const *params, size_t count)
+{
+    if (name == NULL || (params == NULL && count > 0))
+    {
+        internal_error("gen_call dostal NULL");
+    }
+
+    char var[GEN_NAME_MAX];
+    char label[GEN_NAME_MAX];
+
+    gen_instr("CREATEFRAME", NULL, NULL, NULL);
+
+    for (size_t i = 0; i < count; i++)
+    {
+        gen_var(var, sizeof(var), "TF", params[i]);
+        gen_instr("DEFVAR", var, NULL, NULL);
+    }
+
+    /* Argumenty byly pushnuty zleva doprava, takže poslední je na vrcholu. */
+    for (size_t i = count; i > 0; i--)
+    {
+        gen_var(var, sizeof(var), "TF", params[i - 1]);
+        gen_instr("POPS", var, NULL, NULL);
+    }
+
+    gen_func_label(label, sizeof(label), name);
+    gen_instr("CALL", label, NULL, NULL);
+}

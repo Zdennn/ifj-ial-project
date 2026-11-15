@@ -88,6 +88,81 @@ void gen_print(const char *operand);
  */
 void gen_print_unit(void);
 
+/* Maximální délka jména operandu/návěští sestavovaného generátorem. */
+#define GEN_NAME_MAX 256
+
+/**
+ * @brief Složí operand proměnné ve tvaru <frame>@<name> (např. LF@x).
+ * @param buf   Cílový buffer, nesmí být NULL.
+ * @param size  Velikost bufferu (při oříznutí interní chyba).
+ * @param frame Rámec: "GF", "LF" nebo "TF".
+ * @param name  Jméno proměnné.
+ */
+void gen_var(char *buf, size_t size, const char *frame, const char *name);
+
+/**
+ * @brief Složí jméno návěští funkce ve tvaru $func_<name>.
+ * @param buf  Cílový buffer, nesmí být NULL.
+ * @param size Velikost bufferu (při oříznutí interní chyba).
+ * @param name Jméno funkce.
+ */
+void gen_func_label(char *buf, size_t size, const char *name);
+
+/**
+ * @brief Začátek programu: DEFVAR GF@$retval a JUMP na vstupní funkci.
+ * @param main_name Jméno funkce s @main.
+ */
+void gen_program_start(const char *main_name);
+
+/**
+ * @brief Začátek funkce: LABEL $func_<name> a PUSHFRAME (parametry už jsou v TF).
+ * @param name Jméno funkce.
+ */
+void gen_function_begin(const char *name);
+
+/**
+ * @brief Definuje lokální proměnnou: DEFVAR LF@<name>. Jméno musí být unikátní v rámci funkce.
+ * @param name Jméno proměnné.
+ */
+void gen_defvar_local(const char *name);
+
+/**
+ * @brief Návrat z funkce: MOVE GF@$retval <value>, POPFRAME, RETURN.
+ * @param value Operand návratové hodnoty (např. "LF@x", "int@0").
+ */
+void gen_function_return(const char *value);
+
+/**
+ * @brief Návrat z funkce s hodnotou Unit (string@()).
+ */
+void gen_function_return_unit(void);
+
+/**
+ * @brief Vloží operand na datový zásobník (PUSHS). Používá se pro argumenty.
+ * @param operand Operand hodnoty.
+ */
+void gen_push(const char *operand);
+
+/**
+ * @brief Vyjme hodnotu z datového zásobníku do proměnné (POPS).
+ * @param var Operand proměnné.
+ */
+void gen_pop(const char *var);
+
+/**
+ * @brief Vloží návratovou hodnotu poslední funkce na datový zásobník (PUSHS GF@$retval).
+ */
+void gen_push_retval(void);
+
+/**
+ * @brief Volání funkce. Argumenty musí být již na datovém zásobníku (poslední nahoře).
+ *        Vygeneruje CREATEFRAME, DEFVAR TF@p, POPS TF@p (odzadu) a CALL $func_<name>.
+ * @param name   Jméno volané funkce.
+ * @param params Jména formálních parametrů v pořadí z definice (smí být NULL, když count == 0).
+ * @param count  Počet parametrů.
+ */
+void gen_call(const char *name, const char *const *params, size_t count);
+
 
 
 #endif
