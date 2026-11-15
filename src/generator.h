@@ -159,12 +159,11 @@ void gen_push_retval(void);
 
 /**
  * @brief Volání funkce. Argumenty musí být již na datovém zásobníku (poslední nahoře).
- *        Vygeneruje CREATEFRAME, DEFVAR TF@p, POPS TF@p (odzadu) a CALL $func_<name>.
- * @param name   Jméno volané funkce.
- * @param params Jména formálních parametrů v pořadí z definice (smí být NULL, když count == 0).
- * @param count  Počet parametrů.
+ *        Vygeneruje CREATEFRAME, DEFVAR TF@$p<i>, POPS TF@$p<i> (odzadu) a CALL $func_<name>.
+ * @param name  Jméno volané funkce.
+ * @param count Počet argumentů.
  */
-void gen_call(const char *name, const char *const *params, size_t count);
+void gen_call(const char *name, size_t count);
 
 /**
  * @brief Vloží literál typu Int na datový zásobník.

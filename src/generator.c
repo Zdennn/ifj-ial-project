@@ -272,9 +272,9 @@ void gen_push_retval(void)
     gen_instr("PUSHS", "GF@$retval", NULL, NULL);
 }
 
-void gen_call(const char *name, const char *const *params, size_t count)
+void gen_call(const char *name, size_t count)
 {
-    if (name == NULL || (params == NULL && count > 0))
+    if (name == NULL)
     {
         internal_error("gen_call dostal NULL");
     }
@@ -286,14 +286,14 @@ void gen_call(const char *name, const char *const *params, size_t count)
 
     for (size_t i = 0; i < count; i++)
     {
-        gen_var(var, sizeof(var), "TF", params[i]);
+        snprintf(var, sizeof(var), "TF@$p%zu", i);
         gen_instr("DEFVAR", var, NULL, NULL);
     }
 
     /* Argumenty byly pushnuty zleva doprava, takže poslední je na vrcholu. */
     for (size_t i = count; i > 0; i--)
     {
-        gen_var(var, sizeof(var), "TF", params[i - 1]);
+        snprintf(var, sizeof(var), "TF@$p%zu", i - 1);
         gen_instr("POPS", var, NULL, NULL);
     }
 

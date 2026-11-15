@@ -403,21 +403,20 @@ static int test_functions(void)
     free(s);
 
     cap_begin();
-    gen_call("foo", NULL, 0);
+    gen_call("foo", 0);
     s = cap_end();
     failed += check("call bez parametru", s, "CREATEFRAME\nCALL $func_foo\n");
     free(s);
 
-    const char *params[] = {"a", "b"};
     cap_begin();
-    gen_call("add", params, 2);
+    gen_call("add", 2);
     s = cap_end();
     failed += check("call se dvema parametry", s,
                     "CREATEFRAME\n"
-                    "DEFVAR TF@a\n"
-                    "DEFVAR TF@b\n"
-                    "POPS TF@b\n"
-                    "POPS TF@a\n"
+                    "DEFVAR TF@$p0\n"
+                    "DEFVAR TF@$p1\n"
+                    "POPS TF@$p1\n"
+                    "POPS TF@$p0\n"
                     "CALL $func_add\n");
     free(s);
 
