@@ -20,4 +20,9 @@
  */
 int get_next_token(Token *token);
 
+/**
+ * @brief Resetuje vnitřní stav lexeru mezi jednotlivými testy nebo vstupy. (pro testy)
+ */
+void scanner_reset();
+
 #endif

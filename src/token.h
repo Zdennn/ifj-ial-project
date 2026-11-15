@@ -35,6 +35,8 @@ typedef enum
     TOKEN_INT_HOD,
     TOKEN_DOUBLE_HOD,
 
+    TOKEN_ODSAZENI,
+
     TOKEN_ROVNO,    // =
     TOKEN_PLUS,     // +
     TOKEN_MINUS,    // -
@@ -63,6 +65,7 @@ typedef struct
     char *string;      // Textová hodnota
     int int_val;       // Celočíselná hodnota
     double double_val; // Hodnota desetiného čísla
+    int line;          // Číslo řádku
 } Token;
 
 #endif
