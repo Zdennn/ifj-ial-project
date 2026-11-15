@@ -428,6 +428,19 @@ static int test_functions(void)
                     "CALL $func_add\n");
     free(s);
 
+    /* parametry funkce */
+    const char *names[] = {"a$0", "b$1"};
+    cap_begin();
+    gen_function_begin("add");
+    gen_function_params(names, 2);
+    gen_function_end();
+    s = cap_end();
+    failed += check("function params", s,
+                    "LABEL $func_add\nPUSHFRAME\n"
+                    "DEFVAR LF@a$0\nDEFVAR LF@b$1\n"
+                    "MOVE LF@a$0 LF@$p0\nMOVE LF@b$1 LF@$p1\n");
+    free(s);
+
     return failed;
 }
 

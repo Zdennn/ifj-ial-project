@@ -222,4 +222,12 @@ void gen_store_var(const char *gen_name);
  */
 void gen_print_stack(void);
 
+/**
+ * @brief Definuje parametry funkce: DEFVAR LF@<jmeno> a MOVE LF@<jmeno> LF@$p<i> (kopie z volání).
+ *        Volá se hned po gen_function_begin.
+ * @param names Jedinečná jména parametrů pro generátor (SymbolData.gen_name), smí být NULL, když count == 0.
+ * @param count Počet parametrů.
+ */
+void gen_function_params(const char *const *names, size_t count);
+
 #endif
