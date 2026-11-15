@@ -370,16 +370,24 @@ static int test_functions(void)
                     "DEFVAR GF@$retval\nDEFVAR GF@$tmp1\nDEFVAR GF@$tmp2\nDEFVAR GF@$tmp3\nJUMP $func_main\n");
     free(s);
 
+    /* DEFVAR se vypíše před tělo, i když vznikl až po něm */
     cap_begin();
     gen_function_begin("foo");
+    gen_defvar_local("x$0");
+    gen_instr("MOVE", "LF@x$0", "int@1", NULL);
+    gen_defvar_local("y$1");
+    gen_function_end();
     s = cap_end();
-    failed += check("function begin", s, "LABEL $func_foo\nPUSHFRAME\n");
+    failed += check("function begin end", s,
+                    "LABEL $func_foo\nPUSHFRAME\nDEFVAR LF@x$0\nDEFVAR LF@y$1\nMOVE LF@x$0 int@1\n");
     free(s);
 
+    /* prázdná funkce */
     cap_begin();
-    gen_defvar_local("x");
+    gen_function_begin("bar");
+    gen_function_end();
     s = cap_end();
-    failed += check("defvar local", s, "DEFVAR LF@x\n");
+    failed += check("function prazdna", s, "LABEL $func_bar\nPUSHFRAME\n");
     free(s);
 
     cap_begin();

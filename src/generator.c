@@ -209,25 +209,77 @@ void gen_program_start(const char *main_name)
     gen_instr("JUMP", label, NULL, NULL);
 }
 
+/* Stav rozpracované funkce: tělo a DEFVAR se drží zvlášť v paměti. */
+static FILE *final_out = NULL;
+static FILE *body_stream = NULL;
+static FILE *defs_stream = NULL;
+static char *body_buf = NULL;
+static char *defs_buf = NULL;
+static size_t body_size = 0;
+static size_t defs_size = 0;
+static char current_label[GEN_NAME_MAX];
+
 void gen_function_begin(const char *name)
 {
+    require_stream();
+
     if (name == NULL)
     {
         internal_error("gen_function_begin dostal NULL");
     }
+    if (body_stream != NULL)
+    {
+        internal_error("gen_function_begin: predchozi funkce nebyla ukoncena");
+    }
 
-    char label[GEN_NAME_MAX];
-    gen_func_label(label, sizeof(label), name);
+    gen_func_label(current_label, sizeof(current_label), name);
 
-    gen_instr("LABEL", label, NULL, NULL);
-    gen_instr("PUSHFRAME", NULL, NULL, NULL);
+    body_stream = open_memstream(&body_buf, &body_size);
+    defs_stream = open_memstream(&defs_buf, &defs_size);
+    if (body_stream == NULL || defs_stream == NULL)
+    {
+        internal_error("gen_function_begin: open_memstream selhal");
+    }
+
+    final_out = out_stream;
+    out_stream = body_stream;
 }
 
 void gen_defvar_local(const char *name)
 {
+    if (defs_stream == NULL)
+    {
+        internal_error("gen_defvar_local mimo funkci");
+    }
+
     char var[GEN_NAME_MAX];
     gen_var(var, sizeof(var), "LF", name);
-    gen_instr("DEFVAR", var, NULL, NULL);
+    fprintf(defs_stream, "DEFVAR %s\n", var);
+}
+
+void gen_function_end(void)
+{
+    if (body_stream == NULL)
+    {
+        internal_error("gen_function_end mimo funkci");
+    }
+
+    fclose(body_stream);
+    fclose(defs_stream);
+    body_stream = NULL;
+    defs_stream = NULL;
+
+    out_stream = final_out;
+
+    gen_label(current_label);
+    gen_instr("PUSHFRAME", NULL, NULL, NULL);
+    fputs(defs_buf, out_stream);
+    fputs(body_buf, out_stream);
+
+    free(defs_buf);
+    free(body_buf);
+    defs_buf = NULL;
+    body_buf = NULL;
 }
 
 void gen_function_return(const char *value)

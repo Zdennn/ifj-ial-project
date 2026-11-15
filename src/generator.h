@@ -118,14 +118,20 @@ void gen_func_label(char *buf, size_t size, const char *name);
 void gen_program_start(const char *main_name);
 
 /**
- * @brief Začátek funkce: LABEL $func_<name> a PUSHFRAME (parametry už jsou v TF).
- * @param name Jméno funkce.
+ * @brief Začátek funkce. Od tohoto volání se výstup ukládá do paměti, dokud nepřijde gen_function_end.
+ * @param name Jméno funkce, nesmí být NULL.
  */
 void gen_function_begin(const char *name);
 
 /**
- * @brief Definuje lokální proměnnou: DEFVAR LF@<name>. Jméno musí být unikátní v rámci funkce.
- * @param name Jméno proměnné.
+ * @brief Konec funkce: vypíše LABEL, PUSHFRAME, všechny DEFVAR a potom tělo funkce.
+ */
+void gen_function_end(void);
+
+/**
+ * @brief Definuje lokální proměnnou funkce. DEFVAR se vypíše na začátek funkce (před tělo),
+ *        takže se neopakuje v cyklech. Smí se volat jen uvnitř funkce.
+ * @param name Jedinečné jméno proměnné (SymbolData.gen_name).
  */
 void gen_defvar_local(const char *name);
 
