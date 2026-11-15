@@ -523,6 +523,53 @@ static int test_expressions(void)
     return failed;
 }
 
+static int test_if(void)
+{
+    int failed = 0;
+    char *s;
+
+    cap_begin();
+    gen_if_begin(7);
+    gen_instr("WRITE", "string@a", NULL, NULL);
+    gen_if_else(7);
+    gen_instr("WRITE", "string@b", NULL, NULL);
+    gen_if_end(7);
+    s = cap_end();
+    failed += check("if else", s,
+                    "POPS GF@$tmp1\n"
+                    "JUMPIFEQ $else_7 GF@$tmp1 bool@false\n"
+                    "WRITE string@a\n"
+                    "JUMP $endif_7\n"
+                    "LABEL $else_7\n"
+                    "WRITE string@b\n"
+                    "LABEL $endif_7\n");
+    free(s);
+
+    /* dva různé if mají různá návěští */
+    cap_begin();
+    gen_if_begin(1);
+    gen_if_else(1);
+    gen_if_end(1);
+    gen_if_begin(2);
+    gen_if_else(2);
+    gen_if_end(2);
+    s = cap_end();
+    failed += check("dva if", s,
+                    "POPS GF@$tmp1\n"
+                    "JUMPIFEQ $else_1 GF@$tmp1 bool@false\n"
+                    "JUMP $endif_1\n"
+                    "LABEL $else_1\n"
+                    "LABEL $endif_1\n"
+                    "POPS GF@$tmp1\n"
+                    "JUMPIFEQ $else_2 GF@$tmp1 bool@false\n"
+                    "JUMP $endif_2\n"
+                    "LABEL $else_2\n"
+                    "LABEL $endif_2\n");
+    free(s);
+
+    return failed;
+}
+
 int main(void)
 {
     int failed = 0;
@@ -536,6 +583,7 @@ int main(void)
     failed += test_print();
     failed += test_functions();
     failed += test_expressions();
+    failed += test_if();
 
     fprintf(stdout, "Fail %d\n", failed);
 

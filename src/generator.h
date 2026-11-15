@@ -230,4 +230,22 @@ void gen_print_stack(void);
  */
 void gen_function_params(const char *const *names, size_t count);
 
+/**
+ * @brief Začátek if: vyjme podmínku (bool) ze zásobníku a při false skočí na $else_<id>.
+ * @param id Unikátní číslo z gen_new_label_id(), stejné pro celý if.
+ */
+void gen_if_begin(int id);
+
+/**
+ * @brief Přechod na větev else: JUMP $endif_<id> a LABEL $else_<id>.
+ * @param id Stejné číslo jako u gen_if_begin.
+ */
+void gen_if_else(int id);
+
+/**
+ * @brief Konec if: LABEL $endif_<id>.
+ * @param id Stejné číslo jako u gen_if_begin.
+ */
+void gen_if_end(int id);
+
 #endif

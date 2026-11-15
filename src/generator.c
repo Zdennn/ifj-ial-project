@@ -545,6 +545,33 @@ void gen_function_params(const char *const *names, size_t count)
         gen_var(var, sizeof(var), "LF", names[i]);
         snprintf(src, sizeof(src), "LF@$p%zu", i);
         gen_instr("MOVE", var, src, NULL);
-    }
-    
+    }   
+}
+
+void gen_if_begin(int id)
+{
+    char label[GEN_NAME_MAX];
+    gen_label_name(label, sizeof(label), "else", id);
+
+    gen_instr("POPS", "GF@$tmp1", NULL, NULL);
+    gen_instr("JUMPIFEQ", label, "GF@$tmp1", "bool@false");
+}
+
+void gen_if_else(int id)
+{
+    char else_label[GEN_NAME_MAX];
+    char end_label[GEN_NAME_MAX];
+    gen_label_name(else_label, sizeof(else_label), "else", id);
+    gen_label_name(end_label, sizeof(end_label), "endif", id);
+
+    gen_instr("JUMP", end_label, NULL, NULL);
+    gen_label(else_label);
+}
+
+void gen_if_end(int id)
+{
+    char label[GEN_NAME_MAX];
+    gen_label_name(label, sizeof(label), "endif", id);
+
+    gen_label(label);
 }
