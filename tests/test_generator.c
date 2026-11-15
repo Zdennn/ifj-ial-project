@@ -325,6 +325,104 @@ static int test_print(void)
     return failed;
 }
 
+static FILE *g_file = NULL;
+static char *g_buf = NULL;
+static size_t g_size = 0;
+
+/* Začne zachytávat výstup generátoru do paměti. */
+static void cap_begin(void)
+{
+    g_buf = NULL;
+    g_size = 0;
+    g_file = open_memstream(&g_buf, &g_size);
+    if (g_file == NULL)
+    {
+        fprintf(stderr, "test: open_memstream selhal\n");
+        exit(1);
+    }
+    gen_init(g_file);
+}
+
+/* Ukončí zachytávání a vrátí text, volající ho musí free(). */
+static char *cap_end(void)
+{
+    fclose(g_file);
+    g_file = NULL;
+    return g_buf;
+}
+
+static int test_functions(void)
+{
+    int failed = 0;
+    char *s;
+    char name[GEN_NAME_MAX];
+
+    gen_var(name, sizeof(name), "LF", "x");
+    failed += check("gen_var", name, "LF@x");
+
+    gen_func_label(name, sizeof(name), "foo");
+    failed += check("gen_func_label", name, "$func_foo");
+
+    cap_begin();
+    gen_program_start("main");
+    s = cap_end();
+    failed += check("program start", s, "DEFVAR GF@$retval\nJUMP $func_main\n");
+    free(s);
+
+    cap_begin();
+    gen_function_begin("foo");
+    s = cap_end();
+    failed += check("function begin", s, "LABEL $func_foo\nPUSHFRAME\n");
+    free(s);
+
+    cap_begin();
+    gen_defvar_local("x");
+    s = cap_end();
+    failed += check("defvar local", s, "DEFVAR LF@x\n");
+    free(s);
+
+    cap_begin();
+    gen_function_return("LF@x");
+    s = cap_end();
+    failed += check("function return", s, "MOVE GF@$retval LF@x\nPOPFRAME\nRETURN\n");
+    free(s);
+
+    cap_begin();
+    gen_function_return_unit();
+    s = cap_end();
+    failed += check("function return unit", s, "MOVE GF@$retval string@()\nPOPFRAME\nRETURN\n");
+    free(s);
+
+    cap_begin();
+    gen_push("int@5");
+    gen_pop("LF@x");
+    gen_push_retval();
+    s = cap_end();
+    failed += check("push pop retval", s, "PUSHS int@5\nPOPS LF@x\nPUSHS GF@$retval\n");
+    free(s);
+
+    cap_begin();
+    gen_call("foo", NULL, 0);
+    s = cap_end();
+    failed += check("call bez parametru", s, "CREATEFRAME\nCALL $func_foo\n");
+    free(s);
+
+    const char *params[] = {"a", "b"};
+    cap_begin();
+    gen_call("add", params, 2);
+    s = cap_end();
+    failed += check("call se dvema parametry", s,
+                    "CREATEFRAME\n"
+                    "DEFVAR TF@a\n"
+                    "DEFVAR TF@b\n"
+                    "POPS TF@b\n"
+                    "POPS TF@a\n"
+                    "CALL $func_add\n");
+    free(s);
+
+    return failed;
+}
+
 int main(void)
 {
     int failed = 0;
@@ -336,6 +434,7 @@ int main(void)
     failed += test_instr();
     failed += test_labels();
     failed += test_print();
+    failed += test_functions();
 
 
     fprintf(stdout, "Fail %d\n", failed);
