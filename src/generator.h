@@ -12,6 +12,9 @@
 
 #include <stdio.h>
 
+#include "symtable.h"
+#include "token.h"
+
 /**
  * @brief Nastaví výstupní proud pro generovaný kód.
  * @param out Cílový proud, nesmí být NULL.
@@ -163,6 +166,55 @@ void gen_push_retval(void);
  */
 void gen_call(const char *name, const char *const *params, size_t count);
 
+/**
+ * @brief Vloží literál typu Int na datový zásobník.
+ * @param value Hodnota.
+ */
+void gen_push_int(int value);
 
+/**
+ * @brief Vloží literál typu Double na datový zásobník.
+ * @param value Hodnota.
+ */
+void gen_push_float(double value);
+
+/**
+ * @brief Vloží literál typu String na datový zásobník (s escape sekvencemi).
+ * @param str Řetězec zakončený nulou, nesmí být NULL.
+ */
+void gen_push_string(const char *str);
+
+/**
+ * @brief Vloží hodnotu lokální proměnné na datový zásobník.
+ * @param gen_name Jedinečné jméno proměnné pro generátor (SymbolData.gen_name).
+ */
+void gen_push_var(const char *gen_name);
+
+/**
+ * @brief Provede binární operaci nad dvěma hodnotami na vrcholu zásobníku (levý pod pravým).
+ *        Řeší převod Int na Double, celočíselné a desetinné dělení, konkatenaci a relace.
+ *        Výsledek (číslo, řetězec nebo Boolean) zůstane na zásobníku.
+ * @param op    TOKEN_PLUS, MINUS, NAS, DEL, MENSI, VETSI, MENSI_ROVNO, VETSI_ROVNO, STEJNO, NE_ROVNO.
+ * @param left  Typ levého operandu.
+ * @param right Typ pravého operandu.
+ */
+void gen_binary(TokenType op, DataType left, DataType right);
+
+/**
+ * @brief Unární mínus nad hodnotou na vrcholu zásobníku.
+ * @param type TYPE_INT nebo TYPE_DOUBLE.
+ */
+void gen_unary_minus(DataType type);
+
+/**
+ * @brief Vyjme hodnotu z vrcholu zásobníku a uloží ji do lokální proměnné.
+ * @param gen_name Jedinečné jméno proměnné.
+ */
+void gen_store_var(const char *gen_name);
+
+/**
+ * @brief Vyjme hodnotu z vrcholu zásobníku a vypíše ji (print výrazu).
+ */
+void gen_print_stack(void);
 
 #endif

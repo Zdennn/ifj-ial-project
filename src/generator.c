@@ -2,14 +2,17 @@
  * @file generator.c
  * @brief Implementace generátoru kódu.
  *
- * TODO - Popisek
+ * Generuje cílový kód IFJcode26 
+ * (instrukce, konstanty, návěští, funkce a výrazy na datovém zásobníku)
  *
  * @author Tadeáš Trynkl, Jonáš Javůrek, Zdeněk Michalec
  */
 
 #include "generator.h"
-#include <stdlib.h>
 #include "error.h"
+
+#include <stdlib.h>
+#include <stdbool.h>
 
 static FILE *out_stream = NULL;
 
@@ -58,7 +61,7 @@ void gen_write_string(const char *str)
 
     if (str == NULL)
     {
-        fprintf(stderr,"gen: gen_write_string má prazdný str");
+        fprintf(stderr,"gen: gen_write_string má prazdný str\n");
         exit(ERR_INTERNAL);
     }
 
@@ -200,6 +203,9 @@ void gen_program_start(const char *main_name)
     gen_func_label(label, sizeof(label), main_name);
 
     gen_instr("DEFVAR", "GF@$retval", NULL, NULL);
+    gen_instr("DEFVAR", "GF@$tmp1", NULL, NULL);
+    gen_instr("DEFVAR", "GF@$tmp2", NULL, NULL);
+    gen_instr("DEFVAR", "GF@$tmp3", NULL, NULL);
     gen_instr("JUMP", label, NULL, NULL);
 }
 
@@ -293,4 +299,179 @@ void gen_call(const char *name, const char *const *params, size_t count)
 
     gen_func_label(label, sizeof(label), name);
     gen_instr("CALL", label, NULL, NULL);
+}
+
+void gen_push_int(int value)
+{
+    require_stream();
+    fputs("PUSHS ", out_stream);
+    gen_write_int(value);
+    fputc('\n', out_stream);
+}
+
+void gen_push_float(double value)
+{
+    require_stream();
+    fputs("PUSHS ", out_stream);
+    gen_write_float(value);
+    fputc('\n', out_stream);
+}
+
+void gen_push_string(const char *str)
+{
+    require_stream();
+    fputs("PUSHS ", out_stream);
+    gen_write_string(str);
+    fputc('\n', out_stream);
+}
+
+void gen_push_var(const char *gen_name)
+{
+    if (gen_name == NULL)
+    {
+        internal_error("gen_push_var dostal NULL");
+    }
+
+    char var[GEN_NAME_MAX];
+    gen_var(var, sizeof(var), "LF", gen_name);
+    gen_push(var);
+}
+
+static bool is_numeric(DataType t)
+{
+    return t == TYPE_INT || t == TYPE_DOUBLE;
+}
+
+/* Sjednotí typy číselných operandů: Int se převede na Double, pokud je druhý Double. */
+static void promote(DataType left, DataType right)
+{
+    if (left == TYPE_INT && right == TYPE_DOUBLE)
+    {
+        /* levý operand leží pod pravým, takže pravý dočasně vyjmeme */
+        gen_instr("POPS", "GF@$tmp1", NULL, NULL);
+        gen_instr("INT2FLOATS", NULL, NULL, NULL);
+        gen_instr("PUSHS", "GF@$tmp1", NULL, NULL);
+    }
+    else if (left == TYPE_DOUBLE && right == TYPE_INT)
+    {
+        gen_instr("INT2FLOATS", NULL, NULL, NULL);
+    }
+}
+
+static const char *arith_instr(TokenType op, bool ints)
+{
+    switch (op)
+    {
+    case TOKEN_PLUS:
+        return "ADDS";
+    case TOKEN_MINUS:
+        return "SUBS";
+    case TOKEN_NAS:
+        return "MULS";
+    default:
+        return ints ? "IDIVS" : "DIVS";
+    }
+}
+
+void gen_binary(TokenType op, DataType left, DataType right)
+{
+    require_stream();
+
+    bool numeric = is_numeric(left) && is_numeric(right);
+
+    /* Konkatenace řetězců: CONCAT nemá zásobníkovou verzi. */
+    if (op == TOKEN_PLUS && left == TYPE_STRING && right == TYPE_STRING)
+    {
+        gen_instr("POPS", "GF@$tmp2", NULL, NULL);
+        gen_instr("POPS", "GF@$tmp1", NULL, NULL);
+        gen_instr("CONCAT", "GF@$tmp3", "GF@$tmp1", "GF@$tmp2");
+        gen_instr("PUSHS", "GF@$tmp3", NULL, NULL);
+        return;
+    }
+
+    /* Aritmetika */
+    if (op == TOKEN_PLUS || op == TOKEN_MINUS || op == TOKEN_NAS || op == TOKEN_DEL)
+    {
+        if (!numeric)
+        {
+            internal_error("gen_binary: aritmetika nad necislem");
+        }
+        promote(left, right);
+        bool ints = (left == TYPE_INT && right == TYPE_INT);
+        gen_instr(arith_instr(op, ints), NULL, NULL, NULL);
+        return;
+    }
+
+    /* Relace */
+    if (!numeric && left != right)
+    {
+        internal_error("gen_binary: porovnani ruznych typu");
+    }
+    if (numeric)
+    {
+        promote(left, right);
+    }
+
+    switch (op)
+    {
+    case TOKEN_MENSI:
+        gen_instr("LTS", NULL, NULL, NULL);
+        break;
+    case TOKEN_VETSI:
+        gen_instr("GTS", NULL, NULL, NULL);
+        break;
+    case TOKEN_MENSI_ROVNO: /* a <= b je not(a > b) */
+        gen_instr("GTS", NULL, NULL, NULL);
+        gen_instr("NOTS", NULL, NULL, NULL);
+        break;
+    case TOKEN_VETSI_ROVNO: /* a >= b je not(a < b) */
+        gen_instr("LTS", NULL, NULL, NULL);
+        gen_instr("NOTS", NULL, NULL, NULL);
+        break;
+    case TOKEN_STEJNO:
+        gen_instr("EQS", NULL, NULL, NULL);
+        break;
+    case TOKEN_NE_ROVNO:
+        gen_instr("EQS", NULL, NULL, NULL);
+        gen_instr("NOTS", NULL, NULL, NULL);
+        break;
+    default:
+        internal_error("gen_binary: neznamy operator");
+    }
+}
+
+void gen_unary_minus(DataType type)
+{
+    /* Násobení -1 zachová i záporné nuly u desetinných čísel. */
+    if (type == TYPE_INT)
+    {
+        gen_push_int(-1);
+    }
+    else if (type == TYPE_DOUBLE)
+    {
+        gen_push_float(-1.0);
+    }
+    else
+    {
+        internal_error("gen_unary_minus: nepodporovany typ");
+    }
+    gen_instr("MULS", NULL, NULL, NULL);
+}
+
+void gen_store_var(const char *gen_name)
+{
+    if (gen_name == NULL)
+    {
+        internal_error("gen_store_var dostal NULL");
+    }
+
+    char var[GEN_NAME_MAX];
+    gen_var(var, sizeof(var), "LF", gen_name);
+    gen_pop(var);
+}
+
+void gen_print_stack(void)
+{
+    gen_instr("POPS", "GF@$tmp1", NULL, NULL);
+    gen_instr("WRITE", "GF@$tmp1", NULL, NULL);
 }
