@@ -248,4 +248,22 @@ void gen_if_else(int id);
  */
 void gen_if_end(int id);
 
+/**
+ * @brief Začátek while: vypíše LABEL $while_start_<id>. Volá se před vyhodnocením podmínky.
+ * @param id Unikátní číslo z gen_new_label_id(), stejné pro celý while.
+ */
+void gen_while_begin(int id);
+
+/**
+ * @brief Po vyhodnocení podmínky: vyjme bool ze zásobníku a při false skočí na $while_end_<id>.
+ * @param id Stejné číslo jako u gen_while_begin.
+ */
+void gen_while_cond(int id);
+
+/**
+ * @brief Konec while: JUMP $while_start_<id> a LABEL $while_end_<id>. Volá se za tělem cyklu.
+ * @param id Stejné číslo jako u gen_while_begin.
+ */
+void gen_while_end(int id);
+
 #endif

@@ -570,6 +570,54 @@ static int test_if(void)
     return failed;
 }
 
+static int test_while(void)
+{
+    int failed = 0;
+    char *s;
+
+    /* pořadí volání odpovídá parseru: begin, (podmínka), cond, (tělo), end */
+    cap_begin();
+    gen_while_begin(3);
+    gen_push_int(1);
+    gen_while_cond(3);
+    gen_instr("WRITE", "string@a", NULL, NULL);
+    gen_while_end(3);
+    s = cap_end();
+    failed += check("while", s,
+                    "LABEL $while_start_3\n"
+                    "PUSHS int@1\n"
+                    "POPS GF@$tmp1\n"
+                    "JUMPIFEQ $while_end_3 GF@$tmp1 bool@false\n"
+                    "WRITE string@a\n"
+                    "JUMP $while_start_3\n"
+                    "LABEL $while_end_3\n");
+    free(s);
+
+    /* vnořené while: každé má vlastní návěští */
+    cap_begin();
+    gen_while_begin(1);
+    gen_while_cond(1);
+    gen_while_begin(2);
+    gen_while_cond(2);
+    gen_while_end(2);
+    gen_while_end(1);
+    s = cap_end();
+    failed += check("while vnorene", s,
+                    "LABEL $while_start_1\n"
+                    "POPS GF@$tmp1\n"
+                    "JUMPIFEQ $while_end_1 GF@$tmp1 bool@false\n"
+                    "LABEL $while_start_2\n"
+                    "POPS GF@$tmp1\n"
+                    "JUMPIFEQ $while_end_2 GF@$tmp1 bool@false\n"
+                    "JUMP $while_start_2\n"
+                    "LABEL $while_end_2\n"
+                    "JUMP $while_start_1\n"
+                    "LABEL $while_end_1\n");
+    free(s);
+
+    return failed;
+}
+
 int main(void)
 {
     int failed = 0;
@@ -584,6 +632,8 @@ int main(void)
     failed += test_functions();
     failed += test_expressions();
     failed += test_if();
+    failed += test_while();
+
 
     fprintf(stdout, "Fail %d\n", failed);
 

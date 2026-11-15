@@ -575,3 +575,31 @@ void gen_if_end(int id)
 
     gen_label(label);
 }
+
+void gen_while_begin(int id)
+{
+    char label[GEN_NAME_MAX];
+    gen_label_name(label, sizeof(label), "while_start", id);
+
+    gen_label(label);
+}
+
+void gen_while_cond(int id)
+{
+    char label[GEN_NAME_MAX];
+    gen_label_name(label, sizeof(label), "while_end", id);
+
+    gen_instr("POPS", "GF@$tmp1", NULL, NULL);
+    gen_instr("JUMPIFEQ", label, "GF@$tmp1", "bool@false");
+}
+
+void gen_while_end(int id)
+{
+    char start_label[GEN_NAME_MAX];
+    char end_label[GEN_NAME_MAX];
+    gen_label_name(start_label, sizeof(start_label), "while_start", id);
+    gen_label_name(end_label, sizeof(end_label), "while_end", id);
+
+    gen_instr("JUMP", start_label, NULL, NULL);
+    gen_label(end_label);
+}
