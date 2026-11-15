@@ -366,7 +366,8 @@ static int test_functions(void)
     cap_begin();
     gen_program_start("main");
     s = cap_end();
-    failed += check("program start", s, "DEFVAR GF@$retval\nJUMP $func_main\n");
+    failed += check("program start", s,
+                    "DEFVAR GF@$retval\nDEFVAR GF@$tmp1\nDEFVAR GF@$tmp2\nDEFVAR GF@$tmp3\nJUMP $func_main\n");
     free(s);
 
     cap_begin();
@@ -423,6 +424,85 @@ static int test_functions(void)
     return failed;
 }
 
+static int check_binary(const char *name, TokenType op, DataType l, DataType r, const char *expected)
+{
+    cap_begin();
+    gen_binary(op, l, r);
+    char *s = cap_end();
+    int failed = check(name, s, expected);
+    free(s);
+    return failed;
+}
+
+static int test_expressions(void)
+{
+    int failed = 0;
+    char *s;
+
+    /* literály a proměnné */
+    cap_begin();
+    gen_push_int(5);
+    gen_push_float(1.0);
+    gen_push_string("a b");
+    gen_push_var("x$3");
+    s = cap_end();
+    failed += check("push literaly", s, "PUSHS int@5\nPUSHS float@0x1p+0\nPUSHS string@a\\032b\nPUSHS LF@x$3\n");
+    free(s);
+
+    /* aritmetika nad Int */
+    failed += check_binary("int +", TOKEN_PLUS, TYPE_INT, TYPE_INT, "ADDS\n");
+    failed += check_binary("int -", TOKEN_MINUS, TYPE_INT, TYPE_INT, "SUBS\n");
+    failed += check_binary("int *", TOKEN_NAS, TYPE_INT, TYPE_INT, "MULS\n");
+    failed += check_binary("int /", TOKEN_DEL, TYPE_INT, TYPE_INT, "IDIVS\n");
+
+    /* Double */
+    failed += check_binary("double /", TOKEN_DEL, TYPE_DOUBLE, TYPE_DOUBLE, "DIVS\n");
+
+    /* konverze Int -> Double */
+    failed += check_binary("int + double", TOKEN_PLUS, TYPE_INT, TYPE_DOUBLE,
+                           "POPS GF@$tmp1\nINT2FLOATS\nPUSHS GF@$tmp1\nADDS\n");
+    failed += check_binary("double * int", TOKEN_NAS, TYPE_DOUBLE, TYPE_INT, "INT2FLOATS\nMULS\n");
+    failed += check_binary("int / double", TOKEN_DEL, TYPE_INT, TYPE_DOUBLE,
+                           "POPS GF@$tmp1\nINT2FLOATS\nPUSHS GF@$tmp1\nDIVS\n");
+
+    /* konkatenace */
+    failed += check_binary("string +", TOKEN_PLUS, TYPE_STRING, TYPE_STRING,
+                           "POPS GF@$tmp2\nPOPS GF@$tmp1\nCONCAT GF@$tmp3 GF@$tmp1 GF@$tmp2\nPUSHS GF@$tmp3\n");
+
+    /* relace */
+    failed += check_binary("int <", TOKEN_MENSI, TYPE_INT, TYPE_INT, "LTS\n");
+    failed += check_binary("int >", TOKEN_VETSI, TYPE_INT, TYPE_INT, "GTS\n");
+    failed += check_binary("int <=", TOKEN_MENSI_ROVNO, TYPE_INT, TYPE_INT, "GTS\nNOTS\n");
+    failed += check_binary("int >=", TOKEN_VETSI_ROVNO, TYPE_INT, TYPE_INT, "LTS\nNOTS\n");
+    failed += check_binary("string ==", TOKEN_STEJNO, TYPE_STRING, TYPE_STRING, "EQS\n");
+    failed += check_binary("int !=", TOKEN_NE_ROVNO, TYPE_INT, TYPE_INT, "EQS\nNOTS\n");
+    failed += check_binary("int == double", TOKEN_STEJNO, TYPE_INT, TYPE_DOUBLE,
+                           "POPS GF@$tmp1\nINT2FLOATS\nPUSHS GF@$tmp1\nEQS\n");
+
+    /* unární mínus */
+    cap_begin();
+    gen_unary_minus(TYPE_INT);
+    s = cap_end();
+    failed += check("unary minus int", s, "PUSHS int@-1\nMULS\n");
+    free(s);
+
+    cap_begin();
+    gen_unary_minus(TYPE_DOUBLE);
+    s = cap_end();
+    failed += check("unary minus double", s, "PUSHS float@-0x1p+0\nMULS\n");
+    free(s);
+
+    /* uložení a výpis ze zásobníku */
+    cap_begin();
+    gen_store_var("x$3");
+    gen_print_stack();
+    s = cap_end();
+    failed += check("store a print", s, "POPS LF@x$3\nPOPS GF@$tmp1\nWRITE GF@$tmp1\n");
+    free(s);
+
+    return failed;
+}
+
 int main(void)
 {
     int failed = 0;
@@ -435,7 +515,7 @@ int main(void)
     failed += test_labels();
     failed += test_print();
     failed += test_functions();
-
+    failed += test_expressions();
 
     fprintf(stdout, "Fail %d\n", failed);
 
