@@ -630,10 +630,51 @@ static void builtin_read(const char *name, const char *type, const char *zero)
     gen_function_end();
 }
 
+/* Šablona pro funkce, které jen zavolají jednu instrukci nad parametrem: toInt, strLength, chr. */
+static void builtin_unary(const char *name, const char *instr)
+{
+    gen_function_begin(name);
+    gen_defvar_local("$r");
+    gen_instr(instr, "LF@$r", "LF@$p0", NULL);
+    gen_function_return("LF@$r");
+    gen_function_end();
+}
+
+/* toStr(value: Any): String. Typ argumentu se zjistí za běhu instrukcí TYPE. */
+static void builtin_toStr(void)
+{
+    gen_function_begin("toStr");
+    gen_defvar_local("$r");
+    gen_defvar_local("$t");
+
+    gen_instr("TYPE", "LF@$t", "LF@$p0", NULL);
+    gen_instr("JUMPIFEQ", "$toStr_int", "LF@$t", "string@int");
+    gen_instr("JUMPIFEQ", "$toStr_float", "LF@$t", "string@float");
+
+    /* zbývá řetězec (včetně Unit, který je reprezentován jako string@()) */
+    gen_instr("MOVE", "LF@$r", "LF@$p0", NULL);
+    gen_instr("JUMP", "$toStr_end", NULL, NULL);
+
+    gen_label("$toStr_int");
+    gen_instr("INT2STR", "LF@$r", "LF@$p0", NULL);
+    gen_instr("JUMP", "$toStr_end", NULL, NULL);
+
+    gen_label("$toStr_float");
+    gen_instr("FLOAT2STR", "LF@$r", "LF@$p0", NULL);
+
+    gen_label("$toStr_end");
+    gen_function_return("LF@$r");
+    gen_function_end();
+}
+
 void gen_builtins(void)
 {
     builtin_print();
     builtin_read("readLine", "string", "string@");
     builtin_read("readInt", "int", "int@0");
     builtin_read("readDouble", "float", "float@0x0p+0");
+    builtin_toStr();
+    builtin_unary("toInt", "FLOAT2INT");
+    builtin_unary("strLength", "STRLEN");
+    builtin_unary("chr", "INT2CHAR");
 }
