@@ -422,8 +422,47 @@ DataType parse_block(DataType expected_return_type)
             */
             ////////////////////////////////////////////!
 
-            last_type = parse_expression();
+            token_id = match(TOKEN_ID);
 
+            // Prirazeni do promenne
+            if (current_token.type == TOKEN_ROVNO)
+            {
+                match(TOKEN_ROVNO);
+
+                SymbolData *symbol = symtable_lookup(token_id.string);
+                if (symbol == NULL)
+                {
+                    printError(ERR_SEM_UNDEF);
+                }
+
+                if (!symbol->is_var)
+                {
+                    printError(ERR_SEM_UNMOD);
+                }
+
+                DataType expression_type = parse_expression();
+
+                if (expression_type != symbol->data_type)
+                {
+                    if (!(expression_type == TYPE_INT && symbol->data_type == TYPE_DOUBLE))
+                    {
+                        printError(ERR_SEM_TYPE);
+                    }
+                }
+
+                last_type = TYPE_UNIT;
+            }
+            // Volani funkce
+            else if (current_token.type == TOKEN_LZAVORKA)
+            {
+                match(TOKEN_LZAVORKA);
+                parse_expression();
+                match(TOKEN_PZAVORKA);
+
+                last_type = TYPE_UNIT;
+            }
+            else
+                printError(ERR_SYN);
             break;
 
         case TOKEN_RETURN:
@@ -751,6 +790,32 @@ DataType kontrola_typu(DataType left_type, PrecIndex op, DataType right_type, To
     return (DataType){0};
 }
 
+DataType static expression_to_DataType(Token token)
+{
+    switch (token.type)
+    {
+    case TOKEN_INT_HOD:
+        return TYPE_INT;
+    case TOKEN_DOUBLE_HOD:
+        return TYPE_DOUBLE;
+    case TOKEN_STRING_HOD:
+        return TYPE_STRING;
+    case TOKEN_UNIT:
+        return TYPE_UNIT;
+    case TOKEN_ID:
+        SymbolData *sym = symtable_lookup(token.string);
+        if (sym != NULL)
+        {
+            return sym->data_type;
+        }
+        printError(ERR_SEM_UNDEF);
+        return (DataType){0};
+    default:
+        printError(ERR_SYN);
+        return (DataType){0};
+    }
+}
+
 DataType parse_expression()
 {
     // bude zpravovavat expresion ve:
@@ -811,7 +876,7 @@ DataType parse_expression()
 
             stack_push(&stack, (StackItem){.sem_type = SEM_TERMINAL,
                                            .prec_sym = input_prec_index,
-                                           .data_type = token_to_dataType(current_token),
+                                           .data_type = expression_to_DataType(current_token),
                                            .token_type = current_token.type});
             get_next_token_from_array();
             break;
