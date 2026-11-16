@@ -455,11 +455,52 @@ DataType parse_block(DataType expected_return_type)
             // Volani funkce
             else if (current_token.type == TOKEN_LZAVORKA)
             {
+                SymbolData *symbol = symtable_lookup(token_id.string);
+                if (symbol == NULL)
+                    printError(ERR_SEM_UNDEF);
+
                 match(TOKEN_LZAVORKA);
-                parse_expression();
+
+                int arg = 0;
+                int carka = 0;
+
+                while (current_token.type != TOKEN_PZAVORKA)
+                {
+                    DataType arg_type = parse_expression();
+
+                    if (arg < symbol->param_count)
+                    {
+                        DataType expected = symbol->param_types[arg];
+
+                        if (expected != TYPE_ANY && arg_type != expected)
+                        {
+                            if (!(arg_type == TYPE_INT && expected == TYPE_DOUBLE))
+                                printError(ERR_SEM_ARG);
+                        }
+                    }
+
+                    arg++;
+
+                    if (current_token.type == TOKEN_CARKA)
+                    {
+                        match(TOKEN_CARKA);
+                        carka++;
+                    }
+                    else
+                        break;
+                }
+
                 match(TOKEN_PZAVORKA);
 
-                last_type = TYPE_UNIT;
+                if (arg != symbol->param_count)
+                    printError(ERR_SEM_ARG);
+
+                if (carka != arg - 1 && !(arg == 0 && carka == 0))
+                {
+                    printError(ERR_SYN);
+                }
+
+                last_type = symbol->data_type;
             }
             else
                 printError(ERR_SYN);
@@ -549,6 +590,7 @@ ErrorCodes define_function_header()
         {
             match(TOKEN_ID);
             pocet_main++;
+            main_flag = true;
 
             if (pocet_main > 1)
             {
@@ -592,7 +634,7 @@ ErrorCodes define_function_header()
     }
     Token return_type_token = match_type();
 
-    symtable_insert_function(name, token_to_dataType(return_type_token), sizeof(param_types), param_types, main_flag);
+    symtable_insert_function(name, token_to_dataType(return_type_token), out_param_count, param_types, main_flag);
     main_name = name;
 
     match(TOKEN_ROVNO);
