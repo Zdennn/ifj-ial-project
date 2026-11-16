@@ -76,7 +76,7 @@ StackItem *stack_top_terminal(PrecStack *stack)
 {
     for (int i = stack->top - 1; i >= 0; i--)
     {
-        if (stack->items[i].sem_type == SEM_TERMINAL || stack->items[i].sem_type == SEM_STOP)
+        if (stack->items[i].sem_type == SEM_TERMINAL) // || stack->items[i].sem_type == SEM_STOP
         {
             return &stack->items[i];
         }
@@ -87,7 +87,18 @@ StackItem *stack_top_terminal(PrecStack *stack)
 
 void stack_vlozeni_zarazky_za_nevyssi_terminal(PrecStack *stack)
 {
-    // TODO
+    int i = stack->top - 1;
+    while (i >= 0 && stack->items[i].sem_type != SEM_TERMINAL)
+    {
+        i--;
+    }
+    stack_push(stack, (StackItem){0});
+    for (int j = stack->top - 1; j > i + 1; j--)
+    {
+        stack->items[j] = stack->items[j - 1];
+    }
+
+    stack->items[i + 1] = (StackItem){.sem_type = SEM_STOP};
 }
 
 void stack_free(PrecStack *stack)
