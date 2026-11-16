@@ -132,7 +132,7 @@ Token match_type()
     {
     case TOKEN_INT:
         return match(TOKEN_INT);
-        break;
+        break; // všechny breaky jsou zbytečné protoze tam mame return :D
     case TOKEN_DOUBLE:
         return match(TOKEN_DOUBLE);
         break;
@@ -662,7 +662,7 @@ DataType *parse_parameters(int *out_param_count)
     return typy_parametru;
 }
 
-DataType kontrola_typu(DataType left_type, PrecIndex op, DataType right_type)
+DataType kontrola_typu(DataType left_type, PrecIndex op, DataType right_type, TokenType op_token)
 {
     switch (op)
     {
@@ -671,8 +671,9 @@ DataType kontrola_typu(DataType left_type, PrecIndex op, DataType right_type)
         {
             return TYPE_INT;
         }
-        else if ((left_type == TYPE_INT && right_type == TYPE_DOUBLE) &&
-                 (left_type == TYPE_DOUBLE && right_type == TYPE_INT))
+        else if ((left_type == TYPE_INT && right_type == TYPE_DOUBLE) ||
+                 (left_type == TYPE_DOUBLE && right_type == TYPE_INT) ||
+                 (left_type == TYPE_DOUBLE && right_type == TYPE_DOUBLE))
         {
             return TYPE_DOUBLE;
         }
@@ -686,14 +687,20 @@ DataType kontrola_typu(DataType left_type, PrecIndex op, DataType right_type)
         if (left_type == TYPE_STRING && right_type == TYPE_STRING)
         {
             // TODO pro minus asi chyba?
-            return TYPE_STRING;
+            if (op_token == TOKEN_PLUS)
+            {
+                return TYPE_STRING;
+            }
+
+            printError(ERR_SEM_TYPE);
         }
         else if (left_type == TYPE_INT && right_type == TYPE_INT)
         {
             return TYPE_INT;
         }
-        else if ((left_type == TYPE_INT && right_type == TYPE_DOUBLE) &&
-                 (left_type == TYPE_DOUBLE && right_type == TYPE_INT))
+        else if ((left_type == TYPE_INT && right_type == TYPE_DOUBLE) ||
+                 (left_type == TYPE_DOUBLE && right_type == TYPE_INT) ||
+                 (left_type == TYPE_DOUBLE && right_type == TYPE_DOUBLE))
         {
             return TYPE_DOUBLE;
         }
@@ -704,8 +711,9 @@ DataType kontrola_typu(DataType left_type, PrecIndex op, DataType right_type)
 
         break;
     case PREC_REL:
-        if ((left_type == TYPE_INT && right_type == TYPE_INT) && (left_type == TYPE_INT && right_type == TYPE_DOUBLE) &&
-            (left_type == TYPE_DOUBLE && right_type == TYPE_INT))
+        if ((left_type == TYPE_INT && right_type == TYPE_INT) || (left_type == TYPE_INT && right_type == TYPE_DOUBLE) ||
+            (left_type == TYPE_DOUBLE && right_type == TYPE_INT) ||
+            (left_type == TYPE_DOUBLE && right_type == TYPE_DOUBLE))
         {
             return TYPE_BOOLEAN;
         }
@@ -720,7 +728,7 @@ DataType kontrola_typu(DataType left_type, PrecIndex op, DataType right_type)
 
         break;
     case PREC_EQUAL:
-        if ((left_type == TYPE_INT && right_type == TYPE_DOUBLE) &&
+        if ((left_type == TYPE_INT && right_type == TYPE_DOUBLE) ||
             (left_type == TYPE_DOUBLE && right_type == TYPE_INT))
         {
             return TYPE_BOOLEAN;
@@ -764,7 +772,7 @@ DataType parse_expression()
     stack_init(&stack);
 
     // Vložení konce stacku
-    stack_push(&stack, (StackItem){.sem_type = SEM_TERMINAL, .prec_sym = PREC_STOP});
+    stack_push(&stack, (StackItem){.sem_type = SEM_TERMINAL, .prec_sym = PREC_STOP, .token_type = current_token.type});
 
     while (true)
     {
@@ -784,7 +792,9 @@ DataType parse_expression()
         switch (operation)
         {
         case PREC_E:
-            stack_push(&stack, (StackItem){.sem_type = SEM_TERMINAL, .prec_sym = input_prec_index});
+            stack_push(
+                &stack,
+                (StackItem){.sem_type = SEM_TERMINAL, .prec_sym = input_prec_index, .token_type = current_token.type});
             get_next_token_from_array();
             break;
         case PREC_S:
@@ -801,7 +811,8 @@ DataType parse_expression()
 
             stack_push(&stack, (StackItem){.sem_type = SEM_TERMINAL,
                                            .prec_sym = input_prec_index,
-                                           .data_type = token_to_dataType(current_token)});
+                                           .data_type = token_to_dataType(current_token),
+                                           .token_type = current_token.type});
             get_next_token_from_array();
             break;
 
@@ -853,8 +864,9 @@ DataType parse_expression()
                     DataType left_type = stack_items[2].data_type;
                     DataType right_type = stack_items[0].data_type;
                     PrecIndex op = stack_items[1].prec_sym;
+                    TokenType op_token = stack_items[1].token_type;
 
-                    result_type = kontrola_typu(left_type, op, right_type);
+                    result_type = kontrola_typu(left_type, op, right_type, op_token);
                 }
                 else
                 {
