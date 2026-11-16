@@ -11,9 +11,10 @@
 #ifndef PARSER_H
 #define PARSER_H
 
+#include "error.h"
+#include "precedence_table.h"
 #include "symtable.h"
 #include "token.h"
-#include "error.h"
 
 /**
  * @brief Hlavní vstupní bod parseru.
@@ -109,7 +110,7 @@ DataType token_to_dataType();
  *
  * Kontroluje úroveň odsazení na začátku každého řádku
  */
-void parse_block();
+DataType parse_block(DataType expected_return_type);
 
 /**
  * @brief Provede syntaktickou a sémantickou analýzu výrazu.
@@ -125,6 +126,11 @@ DataType parse_expression();
  * @brief Funkce pro postupné čtení a zápis všech tokenů do token_array až do EOF.
  */
 void read_file_by_tokens();
+
+/**
+ * @brief Provede kontrolu semantiky výrazu.
+ */
+DataType kontrola_typu(DataType left_type, PrecIndex op, DataType right_type);
 
 /******************************
  *          DEBUG FUNKCE
