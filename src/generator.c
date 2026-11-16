@@ -2,7 +2,7 @@
  * @file generator.c
  * @brief Implementace generátoru kódu.
  *
- * Generuje cílový kód IFJcode26 
+ * Generuje cílový kód IFJcode26
  * (instrukce, konstanty, návěští, funkce a výrazy na datovém zásobníku)
  *
  * @author Tadeáš Trynkl, Jonáš Javůrek, Zdeněk Michalec
@@ -11,8 +11,8 @@
 #include "generator.h"
 #include "error.h"
 
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 static FILE *out_stream = NULL;
 
@@ -20,27 +20,26 @@ static void require_stream(void)
 {
     if (out_stream == NULL)
     {
-        fprintf(stderr,"gen: out_stream NULL\n");
+        fprintf(stderr, "gen: out_stream NULL\n");
         exit(ERR_INTERNAL);
     }
-    
 }
 
 void gen_init(FILE *out)
 {
     if (out == NULL)
     {
-        fprintf(stderr,"gen: gen_init dostal NULL\n");
+        fprintf(stderr, "gen: gen_init dostal NULL\n");
         exit(ERR_INTERNAL);
     }
 
-    out_stream = out; 
+    out_stream = out;
 }
 
 void gen_header(void)
 {
-    require_stream();   
-    fprintf(out_stream,".IFJcode26\n");
+    require_stream();
+    fprintf(out_stream, ".IFJcode26\n");
 }
 
 void gen_write_int(int value)
@@ -52,7 +51,7 @@ void gen_write_int(int value)
 void gen_write_float(double value)
 {
     require_stream();
-    fprintf(out_stream,"float@%a", value);
+    fprintf(out_stream, "float@%a", value);
 }
 
 void gen_write_string(const char *str)
@@ -61,7 +60,7 @@ void gen_write_string(const char *str)
 
     if (str == NULL)
     {
-        fprintf(stderr,"gen: gen_write_string má prazdný str\n");
+        fprintf(stderr, "gen: gen_write_string má prazdný str\n");
         exit(ERR_INTERNAL);
     }
 
@@ -72,11 +71,12 @@ void gen_write_string(const char *str)
         if (*p <= 32 || *p == 35 || *p == 92)
         {
             fprintf(out_stream, "\\%03d", *p);
-        }else
+        }
+        else
         {
             fputc(*p, out_stream);
-        }   
-    }   
+        }
+    }
 }
 
 void gen_instr(const char *opcode, const char *a, const char *b, const char *c)
@@ -545,7 +545,7 @@ void gen_function_params(const char *const *names, size_t count)
         gen_var(var, sizeof(var), "LF", names[i]);
         snprintf(src, sizeof(src), "LF@$p%zu", i);
         gen_instr("MOVE", var, src, NULL);
-    }   
+    }
 }
 
 void gen_if_begin(int id)
@@ -667,6 +667,82 @@ static void builtin_toStr(void)
     gen_function_end();
 }
 
+/* ord(value: String, index: Int): Int.
+ * STRI2INT by při špatném indexu skončil chybou 58, zadání ale chce -1,
+ * proto se index ověří předem (záporný nebo >= délka řetězce). */
+static void builtin_ord(void)
+{
+    gen_function_begin("ord");
+    gen_defvar_local("$r");
+    gen_defvar_local("$len");
+    gen_defvar_local("$b");
+
+    gen_instr("STRLEN", "LF@$len", "LF@$p0", NULL);
+
+    gen_instr("LT", "LF@$b", "LF@$p1", "int@0");
+    gen_instr("JUMPIFEQ", "$ord_bad", "LF@$b", "bool@true");
+
+    gen_instr("LT", "LF@$b", "LF@$p1", "LF@$len");
+    gen_instr("JUMPIFEQ", "$ord_bad", "LF@$b", "bool@false");
+
+    gen_instr("STRI2INT", "LF@$r", "LF@$p0", "LF@$p1");
+    gen_instr("JUMP", "$ord_end", NULL, NULL);
+
+    gen_label("$ord_bad");
+    gen_instr("MOVE", "LF@$r", "int@-1", NULL);
+
+    gen_label("$ord_end");
+    gen_function_return("LF@$r");
+    gen_function_end();
+}
+
+/* subStr(value: String, start: Int, end: Int): String.
+ * Chyba 40 při: start < 0, end < 0, start > end, start >= délka, end > délka. */
+static void builtin_subStr(void)
+{
+    gen_function_begin("subStr");
+    gen_defvar_local("$r");
+    gen_defvar_local("$len");
+    gen_defvar_local("$b");
+    gen_defvar_local("$i");
+    gen_defvar_local("$c");
+
+    gen_instr("STRLEN", "LF@$len", "LF@$p0", NULL);
+
+    gen_instr("LT", "LF@$b", "LF@$p1", "int@0"); /* start < 0 */
+    gen_instr("JUMPIFEQ", "$subStr_err", "LF@$b", "bool@true");
+
+    gen_instr("LT", "LF@$b", "LF@$p2", "int@0"); /* end < 0 */
+    gen_instr("JUMPIFEQ", "$subStr_err", "LF@$b", "bool@true");
+
+    gen_instr("GT", "LF@$b", "LF@$p1", "LF@$p2"); /* start > end */
+    gen_instr("JUMPIFEQ", "$subStr_err", "LF@$b", "bool@true");
+
+    gen_instr("LT", "LF@$b", "LF@$p1", "LF@$len"); /* start >= len */
+    gen_instr("JUMPIFEQ", "$subStr_err", "LF@$b", "bool@false");
+
+    gen_instr("GT", "LF@$b", "LF@$p2", "LF@$len"); /* end > len */
+    gen_instr("JUMPIFEQ", "$subStr_err", "LF@$b", "bool@true");
+
+    gen_instr("MOVE", "LF@$r", "string@", NULL);
+    gen_instr("MOVE", "LF@$i", "LF@$p1", NULL);
+
+    gen_label("$subStr_loop");
+    gen_instr("LT", "LF@$b", "LF@$i", "LF@$p2");
+    gen_instr("JUMPIFEQ", "$subStr_done", "LF@$b", "bool@false");
+    gen_instr("GETCHAR", "LF@$c", "LF@$p0", "LF@$i");
+    gen_instr("CONCAT", "LF@$r", "LF@$r", "LF@$c");
+    gen_instr("ADD", "LF@$i", "LF@$i", "int@1");
+    gen_instr("JUMP", "$subStr_loop", NULL, NULL);
+
+    gen_label("$subStr_done");
+    gen_function_return("LF@$r");
+
+    gen_label("$subStr_err");
+    gen_instr("EXIT", "int@40", NULL, NULL);
+    gen_function_end();
+}
+
 void gen_builtins(void)
 {
     builtin_print();
@@ -677,4 +753,6 @@ void gen_builtins(void)
     builtin_unary("toInt", "FLOAT2INT");
     builtin_unary("strLength", "STRLEN");
     builtin_unary("chr", "INT2CHAR");
+    builtin_ord();
+    builtin_subStr();
 }

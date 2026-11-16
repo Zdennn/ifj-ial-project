@@ -397,8 +397,8 @@ static int test_functions(void)
     gen_defvar_local("y$1");
     gen_function_end();
     s = cap_end();
-    failed += check("function begin end", s,
-                    "LABEL $func_foo\nPUSHFRAME\nDEFVAR LF@x$0\nDEFVAR LF@y$1\nMOVE LF@x$0 int@1\n");
+    failed +=
+        check("function begin end", s, "LABEL $func_foo\nPUSHFRAME\nDEFVAR LF@x$0\nDEFVAR LF@y$1\nMOVE LF@x$0 int@1\n");
     free(s);
 
     /* prázdná funkce */
@@ -690,6 +690,108 @@ static int test_builtins(void)
                              "POPFRAME\n"
                              "RETURN\n");
 
+    failed += check_contains("builtin toInt", s,
+                             "LABEL $func_toInt\n"
+                             "PUSHFRAME\n"
+                             "DEFVAR LF@$r\n"
+                             "FLOAT2INT LF@$r LF@$p0\n"
+                             "MOVE GF@$retval LF@$r\n"
+                             "POPFRAME\n"
+                             "RETURN\n");
+
+    failed += check_contains("builtin strLength", s,
+                             "LABEL $func_strLength\n"
+                             "PUSHFRAME\n"
+                             "DEFVAR LF@$r\n"
+                             "STRLEN LF@$r LF@$p0\n"
+                             "MOVE GF@$retval LF@$r\n"
+                             "POPFRAME\n"
+                             "RETURN\n");
+
+    failed += check_contains("builtin chr", s,
+                             "LABEL $func_chr\n"
+                             "PUSHFRAME\n"
+                             "DEFVAR LF@$r\n"
+                             "INT2CHAR LF@$r LF@$p0\n"
+                             "MOVE GF@$retval LF@$r\n"
+                             "POPFRAME\n"
+                             "RETURN\n");
+
+    failed += check_contains("builtin toStr", s,
+                             "LABEL $func_toStr\n"
+                             "PUSHFRAME\n"
+                             "DEFVAR LF@$r\n"
+                             "DEFVAR LF@$t\n"
+                             "TYPE LF@$t LF@$p0\n"
+                             "JUMPIFEQ $toStr_int LF@$t string@int\n"
+                             "JUMPIFEQ $toStr_float LF@$t string@float\n"
+                             "MOVE LF@$r LF@$p0\n"
+                             "JUMP $toStr_end\n"
+                             "LABEL $toStr_int\n"
+                             "INT2STR LF@$r LF@$p0\n"
+                             "JUMP $toStr_end\n"
+                             "LABEL $toStr_float\n"
+                             "FLOAT2STR LF@$r LF@$p0\n"
+                             "LABEL $toStr_end\n"
+                             "MOVE GF@$retval LF@$r\n"
+                             "POPFRAME\n"
+                             "RETURN\n");
+
+    failed += check_contains("builtin ord", s,
+                             "LABEL $func_ord\n"
+                             "PUSHFRAME\n"
+                             "DEFVAR LF@$r\n"
+                             "DEFVAR LF@$len\n"
+                             "DEFVAR LF@$b\n"
+                             "STRLEN LF@$len LF@$p0\n"
+                             "LT LF@$b LF@$p1 int@0\n"
+                             "JUMPIFEQ $ord_bad LF@$b bool@true\n"
+                             "LT LF@$b LF@$p1 LF@$len\n"
+                             "JUMPIFEQ $ord_bad LF@$b bool@false\n"
+                             "STRI2INT LF@$r LF@$p0 LF@$p1\n"
+                             "JUMP $ord_end\n"
+                             "LABEL $ord_bad\n"
+                             "MOVE LF@$r int@-1\n"
+                             "LABEL $ord_end\n"
+                             "MOVE GF@$retval LF@$r\n"
+                             "POPFRAME\n"
+                             "RETURN\n");
+
+    failed += check_contains("builtin subStr", s,
+                             "LABEL $func_subStr\n"
+                             "PUSHFRAME\n"
+                             "DEFVAR LF@$r\n"
+                             "DEFVAR LF@$len\n"
+                             "DEFVAR LF@$b\n"
+                             "DEFVAR LF@$i\n"
+                             "DEFVAR LF@$c\n"
+                             "STRLEN LF@$len LF@$p0\n"
+                             "LT LF@$b LF@$p1 int@0\n"
+                             "JUMPIFEQ $subStr_err LF@$b bool@true\n"
+                             "LT LF@$b LF@$p2 int@0\n"
+                             "JUMPIFEQ $subStr_err LF@$b bool@true\n"
+                             "GT LF@$b LF@$p1 LF@$p2\n"
+                             "JUMPIFEQ $subStr_err LF@$b bool@true\n"
+                             "LT LF@$b LF@$p1 LF@$len\n"
+                             "JUMPIFEQ $subStr_err LF@$b bool@false\n"
+                             "GT LF@$b LF@$p2 LF@$len\n"
+                             "JUMPIFEQ $subStr_err LF@$b bool@true\n"
+                             "MOVE LF@$r string@\n"
+                             "MOVE LF@$i LF@$p1\n"
+                             "LABEL $subStr_loop\n"
+                             "LT LF@$b LF@$i LF@$p2\n"
+                             "JUMPIFEQ $subStr_done LF@$b bool@false\n"
+                             "GETCHAR LF@$c LF@$p0 LF@$i\n"
+                             "CONCAT LF@$r LF@$r LF@$c\n"
+                             "ADD LF@$i LF@$i int@1\n"
+                             "JUMP $subStr_loop\n"
+                             "LABEL $subStr_done\n"
+                             "MOVE GF@$retval LF@$r\n"
+                             "POPFRAME\n"
+                             "RETURN\n"
+                             "LABEL $subStr_err\n"
+                             "EXIT int@40\n");
+
     free(s);
 
     return failed;
@@ -711,7 +813,6 @@ int main(void)
     failed += test_if();
     failed += test_while();
     failed += test_builtins();
-
 
     fprintf(stdout, "Fail %d\n", failed);
 
