@@ -130,7 +130,7 @@ void read_file_by_tokens();
 /**
  * @brief Provede kontrolu semantiky výrazu.
  */
-DataType kontrola_typu(DataType left_type, PrecIndex op, DataType right_type);
+DataType kontrola_typu(DataType left_type, PrecIndex op, DataType right_type, TokenType op_token);
 
 /******************************
  *          DEBUG FUNKCE

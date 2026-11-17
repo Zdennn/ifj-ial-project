@@ -30,9 +30,10 @@ typedef enum
  */
 typedef struct
 {
-    PrecType sem_type;  // Terminál, Neterminál nebo Zarážka
-    PrecIndex prec_sym; // Mapovaný index do precedenční tabulky
-    DataType data_type; // Datový typ (Int, Double...)
+    PrecType sem_type;   // Terminál, Neterminál nebo Zarážka
+    PrecIndex prec_sym;  // Mapovaný index do precedenční tabulky
+    DataType data_type;  // Datový typ (Int, Double...)
+    TokenType token_type // Původní typ tokenu
 } StackItem;
 
 /**
