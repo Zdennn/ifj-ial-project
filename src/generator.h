@@ -112,7 +112,8 @@ void gen_var(char *buf, size_t size, const char *frame, const char *name);
 void gen_func_label(char *buf, size_t size, const char *name);
 
 /**
- * @brief Začátek programu: DEFVAR GF@$retval a JUMP na vstupní funkci.
+ * @brief Začátek programu: definice globálních proměnných ($retval, $tmp1–3),
+ *        zavolání vstupní funkce a ukončení programu s kódem 0.
  * @param main_name Jméno funkce s @main.
  */
 void gen_program_start(const char *main_name);

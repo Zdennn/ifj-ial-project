@@ -206,7 +206,13 @@ void gen_program_start(const char *main_name)
     gen_instr("DEFVAR", "GF@$tmp1", NULL, NULL);
     gen_instr("DEFVAR", "GF@$tmp2", NULL, NULL);
     gen_instr("DEFVAR", "GF@$tmp3", NULL, NULL);
-    gen_instr("JUMP", label, NULL, NULL);
+    /* main se volá jako obyčejná funkce, aby její RETURN měl kam se vrátit.
+     * Po návratu program skončí s kódem 0; vestavěné funkce a ostatní
+     * funkce za EXIT už se nikdy neprovedou jinak než voláním.
+     * TOTO jsem hledal hodinu :D*/
+    gen_instr("CREATEFRAME", NULL, NULL, NULL);
+    gen_instr("CALL", label, NULL, NULL);
+    gen_instr("EXIT", "int@0", NULL, NULL);
 }
 
 /* Stav rozpracované funkce: tělo a DEFVAR se drží zvlášť v paměti. */

@@ -386,7 +386,8 @@ static int test_functions(void)
     gen_program_start("main");
     s = cap_end();
     failed += check("program start", s,
-                    "DEFVAR GF@$retval\nDEFVAR GF@$tmp1\nDEFVAR GF@$tmp2\nDEFVAR GF@$tmp3\nJUMP $func_main\n");
+                    "DEFVAR GF@$retval\nDEFVAR GF@$tmp1\nDEFVAR GF@$tmp2\nDEFVAR GF@$tmp3\n"
+                    "CREATEFRAME\nCALL $func_main\nEXIT int@0\n");
     free(s);
 
     /* DEFVAR se vypíše před tělo, i když vznikl až po něm */
