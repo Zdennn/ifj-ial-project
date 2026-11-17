@@ -64,7 +64,7 @@ void symtable_init()
     symtable_insert_function("toStr", TYPE_STRING, 1, (DataType[]){TYPE_ANY}, false);
     symtable_insert_function("toInt", TYPE_INT, 1, (DataType[]){TYPE_DOUBLE}, false);
     symtable_insert_function("strLength", TYPE_INT, 1, (DataType[]){TYPE_STRING}, false);
-    symtable_insert_function("substr", TYPE_STRING, 3, (DataType[]){TYPE_STRING, TYPE_INT, TYPE_INT}, false);
+    symtable_insert_function("subStr", TYPE_STRING, 3, (DataType[]){TYPE_STRING, TYPE_INT, TYPE_INT}, false);
     symtable_insert_function("ord", TYPE_INT, 2, (DataType[]){TYPE_STRING, TYPE_INT}, false);
     symtable_insert_function("chr", TYPE_STRING, 1, (DataType[]){TYPE_INT}, false);
 }

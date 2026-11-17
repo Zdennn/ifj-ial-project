@@ -1,0 +1,18 @@
+import ifj26.*
+
+def abs(x: Int): Int =
+  if x < 0 then
+    return 0 - x
+  else
+    return x
+
+@main def run(): Unit =
+  val m = 0 - 7
+  val a = abs(m)
+  val b = abs(3)
+  val s = toStr(a)
+  val t = toStr(b)
+  print(s)
+  print(" ")
+  print(t)
+  print("\n")

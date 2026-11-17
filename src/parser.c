@@ -662,7 +662,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
                     gen_function_return("GF@$tmp1");
                 }
             }
-            return last_type;
+            /* GEN: blok se po return neukončuje předčasně, EOL se spolkne na konci smyčky */
             break;
 
         case TOKEN_UNIT:

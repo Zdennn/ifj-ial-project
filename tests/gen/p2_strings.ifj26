@@ -1,0 +1,22 @@
+import ifj26.*
+
+@main def run(): Unit =
+  val s = "abcdef"
+  val sub = subStr(s, 1, 4)
+  print(sub)
+  print("\n")
+  val n = strLength(s)
+  val ns = toStr(n)
+  print(ns)
+  print("\n")
+  val o = ord(s, 2)
+  val os = toStr(o)
+  print(os)
+  print("\n")
+  val c = chr(65)
+  print(c)
+  print("\n")
+  val bad = ord(s, 10)
+  val bs = toStr(bad)
+  print(bs)
+  print("\n")
