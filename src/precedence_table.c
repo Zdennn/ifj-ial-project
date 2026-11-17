@@ -60,6 +60,7 @@ PrecIndex token_to_index(TokenType type)
     case TOKEN_INT_HOD:
     case TOKEN_DOUBLE_HOD:
     case TOKEN_STRING_HOD:
+    case TOKEN_UNIT:
         return PREC_ID;
     case TOKEN_EOL:
     case TOKEN_THEN:

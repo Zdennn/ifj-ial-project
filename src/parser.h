@@ -110,7 +110,7 @@ DataType token_to_dataType();
  *
  * Kontroluje úroveň odsazení na začátku každého řádku
  */
-DataType parse_block(DataType expected_return_type);
+DataType parse_block(DataType expected_return_type, bool has_explicit_return);
 
 /**
  * @brief Provede syntaktickou a sémantickou analýzu výrazu.
