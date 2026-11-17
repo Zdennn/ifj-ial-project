@@ -381,7 +381,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             break;
         case TOKEN_IF:
             match(TOKEN_IF);
-            type_of_expresion = parse_value();
+            type_of_expresion = parse_expression();
             if (type_of_expresion != TYPE_BOOLEAN)
             {
                 printError(ERR_SEM_TYPE);
@@ -446,7 +446,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             break;
         case TOKEN_WHILE:
             match(TOKEN_WHILE);
-            type_of_expresion = parse_value(); // Podmínka
+            type_of_expresion = parse_expression(); // Podmínka
             if (type_of_expresion != TYPE_BOOLEAN)
             {
                 printError(ERR_SEM_TYPE);
@@ -511,11 +511,12 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
                         }
             */
             ////////////////////////////////////////////!
-            token_id = match(TOKEN_ID);
+            Token next = (token_index < tokens.count) ? tokens.items[token_index] : current_token;
 
             // Prirazeni do promenne
-            if (current_token.type == TOKEN_ROVNO)
+            if (next.type == TOKEN_ROVNO)
             {
+                token_id = match(TOKEN_ID);
                 match(TOKEN_ROVNO);
 
                 SymbolData *symbol = symtable_lookup(token_id.string);
@@ -542,24 +543,45 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
                 last_type = TYPE_UNIT;
             }
             // Volani funkce
-            else if (current_token.type == TOKEN_LZAVORKA)
-            {
-                last_type = parse_call(token_id);
-            }
             else
-                printError(ERR_SYN);
+            {
+                last_type = parse_value();
+            }
+
+            if (current_token.type == TOKEN_EOL)
+            {
+                match(TOKEN_EOL);
+            }
             break;
 
-                case TOKEN_RETURN:
+                       case TOKEN_RETURN:
             match(TOKEN_RETURN);
+
             if (!has_explicit_return)
             {
                 printError(ERR_SEM_TYPE);
             }
 
-            if (current_token.type != TOKEN_EOL && current_token.type != TOKEN_EOF)
+            if (current_token.type == TOKEN_EOL || current_token.type == TOKEN_EOF)
+            {
+                if (expected_return_type != TYPE_UNIT)
+                {
+                    printError(10);
+                }
+                last_type = TYPE_UNIT;
+                gen_function_return_unit(); // GEN: samostatný return
+            }
+            else
             {
                 last_type = parse_value();
+
+                if (expected_return_type != TYPE_UNIT && last_type != expected_return_type)
+                {
+                    if (!(last_type == TYPE_INT && expected_return_type == TYPE_DOUBLE))
+                    {
+                        printError(ERR_SEM_TYPE);
+                    }
+                }
 
                 /* GEN: hodnotu vyjmeme ze zásobníku a vrátíme z funkce */
                 if (expected_return_type == TYPE_UNIT)
@@ -577,19 +599,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
                     gen_function_return("GF@$tmp1");
                 }
             }
-            else
-            {
-                last_type = TYPE_UNIT;
-                gen_function_return_unit(); // GEN: samostatný return
-            }
-
-            if (expected_return_type != TYPE_UNIT && last_type != expected_return_type)
-            {
-                if (!(last_type == TYPE_INT && expected_return_type == TYPE_DOUBLE))
-                {
-                    printError(ERR_SEM_TYPE);
-                }
-            }
+            return last_type;
             break;
 
         case TOKEN_UNIT:
@@ -598,6 +608,10 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
         case TOKEN_STRING_HOD:
         case TOKEN_LZAVORKA:
             last_type = parse_value();
+            if (current_token.type == TOKEN_EOL)
+            {
+                match(TOKEN_EOL);
+            }
             break;
 
         default:
@@ -610,7 +624,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             match(TOKEN_EOL);
         }
     }
-    return (DataType){0};
+    return last_type;
 }
 
 void read_file_by_tokens()
@@ -818,15 +832,15 @@ DataType *parse_parameters(int *out_param_count)
 
         if (current_token.type == TOKEN_CARKA)
         {
-            int comma_line = current_token.line;
             match(TOKEN_CARKA);
+
+            if (current_token.type == TOKEN_EOL)
+            {
+                match(TOKEN_EOL);
+            }
 
             if (current_token.type == TOKEN_PZAVORKA)
             {
-                if (current_token.line == comma_line)
-                {
-                    printError(ERR_SYN);
-                }
                 break;
             }
             else if (current_token.type != TOKEN_ID)
@@ -982,6 +996,17 @@ DataType parse_expression()
 
     // Vložení konce stacku
     stack_push(&stack, (StackItem){.sem_type = SEM_TERMINAL, .prec_sym = PREC_STOP, .token_type = current_token.type});
+
+    if (current_token.type == TOKEN_LZAVORKA)
+    {
+        Token next = (token_index < tokens.count) ? tokens.items[token_index] : (Token){0};
+        if (next.type == TOKEN_PZAVORKA)
+        {
+            match(TOKEN_LZAVORKA);
+            match(TOKEN_PZAVORKA);
+            return TYPE_UNIT;
+        }
+    }
 
     int depth = 0;
     while (true)
@@ -1158,6 +1183,23 @@ void parse_function()
 {
     symtable_push_scope();
 
+    if (current_token.type == TOKEN_ZAVINAC)
+    {
+        match(TOKEN_ZAVINAC);
+        if (current_token.type == TOKEN_EOL)
+        {
+            match(TOKEN_EOL);
+        }
+        if (current_token.type == TOKEN_ID)
+        {
+            match(TOKEN_ID);
+        }
+        if (current_token.type == TOKEN_EOL)
+        {
+            match(TOKEN_EOL);
+        }
+    }
+
     char *function_name = NULL;
     while (current_token.type != TOKEN_LZAVORKA)
     {
@@ -1178,6 +1220,13 @@ void parse_function()
         Token token_name = match(TOKEN_ID);
         match(TOKEN_DVOJTEC);
         Token token_type = match_type();
+
+        // duplicitní parametry
+        if (symtable_lookup_current(token_name.string) != NULL)
+        {
+            printError(ERR_SEM_REDEF);
+        }
+
         symtable_insert_var(token_name.string, token_to_dataType(token_type), false);
 
         SymbolData *param = symtable_lookup_current(token_name.string); // GEN

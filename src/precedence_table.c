@@ -68,6 +68,6 @@ PrecIndex token_to_index(TokenType type)
     case TOKEN_EOF:
         return PREC_STOP;
     default:
-        return (PrecIndex){0};
+        return PREC_STOP;
     }
 }
