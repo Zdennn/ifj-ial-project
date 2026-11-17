@@ -27,7 +27,8 @@ typedef enum
     TYPE_STRING,
     TYPE_UNIT,
     TYPE_BOOLEAN,
-    TYPE_ANY
+    TYPE_ANY,
+    TYPE_UNDEF
 } DataType;
 
 typedef struct
