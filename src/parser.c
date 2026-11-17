@@ -195,6 +195,8 @@ static DataType parse_call(Token token_id)
             {
                 if (!(arg_type == TYPE_INT && expected == TYPE_DOUBLE))
                     printError(ERR_SEM_ARG);
+
+                gen_instr("INT2FLOATS", NULL, NULL, NULL); // GEN: Int argument pro parametr Double
             }
         }
 
@@ -220,6 +222,9 @@ static DataType parse_call(Token token_id)
     {
         printError(ERR_SYN);
     }
+
+    gen_call(token_id.string, (size_t)arg); // GEN: argumenty už jsou na zásobníku
+    gen_push_retval();                      // GEN: výsledek volání zůstane na zásobníku
 
     return symbol->data_type;
 }
@@ -332,6 +337,15 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
                 printError(ERR_SEM_TYPE);
             }
             symtable_insert_var(token_id.string, final_var_type, true);
+            { // GEN: definice proměnné a uložení hodnoty výrazu
+                SymbolData *var_sym = symtable_lookup_current(token_id.string);
+                if (type_of_expresion == TYPE_INT && final_var_type == TYPE_DOUBLE)
+                {
+                    gen_instr("INT2FLOATS", NULL, NULL, NULL); // implicitní Int -> Double
+                }
+                gen_defvar_local(var_sym->gen_name);
+                gen_store_var(var_sym->gen_name);
+            }
             last_type = TYPE_UNIT;
             break;
         case TOKEN_VAL:
@@ -377,15 +391,27 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
                 printError(ERR_SEM_TYPE);
             }
             symtable_insert_var(token_id.string, final_var_type, false);
+            { // GEN: definice proměnné a uložení hodnoty výrazu
+                SymbolData *var_sym = symtable_lookup_current(token_id.string);
+                if (type_of_expresion == TYPE_INT && final_var_type == TYPE_DOUBLE)
+                {
+                    gen_instr("INT2FLOATS", NULL, NULL, NULL); // implicitní Int -> Double
+                }
+                gen_defvar_local(var_sym->gen_name);
+                gen_store_var(var_sym->gen_name);
+            }
+
             last_type = TYPE_UNIT;
             break;
         case TOKEN_IF:
             match(TOKEN_IF);
+            int if_id = gen_new_label_id(); // GEN: unikátní číslo pro návěští tohoto if
             type_of_expresion = parse_expression();
             if (type_of_expresion != TYPE_BOOLEAN)
             {
                 printError(ERR_SEM_TYPE);
             }
+            gen_if_begin(if_id); // GEN: vyjme podmínku ze zásobníku, při false skočí na else
             match(TOKEN_THEN);
             match(TOKEN_EOL);
             // Then musí mít větší odsazení než if
@@ -396,6 +422,8 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             symtable_push_scope();
             DataType type_then = parse_block(expected_return_type, has_explicit_return);
             symtable_pop_scope();
+
+            gen_if_else(if_id); // GEN: JUMP na konec if a návěští else
 
             // Else musí mít stejné odsazení jako if!
             if (current_token.type != TOKEN_ODSAZENI || current_token.int_val != pocet_odsazeni)
@@ -428,6 +456,8 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
                 }
             }
 
+            gen_if_end(if_id); // GEN: návěští konce if
+
             if (type_then == type_else)
             {
                 last_type = type_then;
@@ -446,11 +476,15 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             break;
         case TOKEN_WHILE:
             match(TOKEN_WHILE);
+            int while_id = gen_new_label_id();      // GEN: unikátní číslo návěští
+            gen_while_begin(while_id);              // GEN: LABEL začátku cyklu, před vyhodnocením podmínky
             type_of_expresion = parse_expression(); // Podmínka
             if (type_of_expresion != TYPE_BOOLEAN)
             {
                 printError(ERR_SEM_TYPE);
             }
+
+            gen_while_cond(while_id); // GEN: vyjme podmínku, při false skočí za cyklus
 
             match(TOKEN_DO);
             match(TOKEN_EOL);
@@ -462,6 +496,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             symtable_push_scope();
             parse_block(expected_return_type, has_explicit_return);
             symtable_pop_scope();
+            gen_while_end(while_id); // GEN: JUMP na začátek a návěští konce cyklu
             last_type = TYPE_UNIT;
             break;
 
@@ -540,6 +575,13 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
                     }
                 }
 
+                /* GEN: hodnotu výrazu uložíme do proměnné */
+                if (expression_type == TYPE_INT && symbol->data_type == TYPE_DOUBLE)
+                {
+                    gen_instr("INT2FLOATS", NULL, NULL, NULL); // implicitní Int -> Double
+                }
+                gen_store_var(symbol->gen_name);
+
                 last_type = TYPE_UNIT;
             }
             // Volani funkce
@@ -554,7 +596,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             }
             break;
 
-                       case TOKEN_RETURN:
+        case TOKEN_RETURN:
             match(TOKEN_RETURN);
 
             if (!has_explicit_return)
