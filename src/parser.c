@@ -10,6 +10,7 @@
  */
 #include "parser.h"
 #include "error.h"
+#include "generator.h"
 #include "precedence_stack.h"
 #include "precedence_table.h"
 #include "scanner.h"
@@ -713,7 +714,10 @@ ErrorCodes define_function_header()
 
     symtable_insert_function(name, return_type, out_param_count, param_types, main_flag);
 
-    main_name = name;
+    if (main_flag)
+    {
+        main_name = name;
+    }
 
     match(TOKEN_ROVNO);
 
@@ -743,6 +747,10 @@ ErrorCodes parse()
     }
 
     fprintf(stderr, "Konec privniho cteni\n");
+
+    gen_header();
+    gen_program_start(main_name);
+    gen_builtins();
 
     reset_parser_position();
     beginning();
