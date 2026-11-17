@@ -31,6 +31,7 @@ void key_free_func(void *key)
         free(key);
     }
 }
+
 void data_free_func(void *data)
 {
     if (data == NULL)
@@ -44,6 +45,7 @@ void data_free_func(void *data)
     {
         free(symData->param_types);
     }
+    free(symData->gen_name); // u funkcí je NULL, free(NULL) je v pořádku
     free(symData);
 }
 
@@ -117,6 +119,23 @@ SymbolData *symtable_lookup_current(char *name)
     return NULL;
 }
 
+// Globální počítadlo pro jedinečná jména proměnných v generovaném kódu
+static int gen_name_counter = 0;
+
+// Vytvoří jméno ve tvaru <jméno>$<číslo>, např. x$3. Volající ho uvolní přes free().
+static char *make_gen_name(const char *name)
+{
+    size_t len = strlen(name) + 16; // jméno + '$' + číslo + '\0'
+    char *result = malloc(len);
+    if (result == NULL)
+    {
+        fprintf(stderr, "symtable: malloc selhal\n");
+        exit(ERR_INTERNAL);
+    }
+    snprintf(result, len, "%s$%d", name, gen_name_counter++);
+    return result;
+}
+
 void symtable_insert_var(char *name, DataType type, bool is_var)
 {
     SymbolData *data = malloc(sizeof(SymbolData));
@@ -124,6 +143,8 @@ void symtable_insert_var(char *name, DataType type, bool is_var)
     data->symbol_type = SYM_VARIABLE;
     data->data_type = type;
     data->is_var = is_var;
+    data->gen_name = make_gen_name(name);
+    data->is_main = false;
 
     data->param_count = 0;
     data->param_types = NULL;
@@ -140,7 +161,8 @@ void symtable_insert_function(char *name, DataType return_type, int param_count,
     data->param_count = param_count;
     data->is_main = is_main;
     data->is_var = false;
-
+    data->gen_name = NULL;
+    
     if (param_count > 0 && param_types != NULL)
     {
         data->param_types = malloc(param_count * sizeof(DataType));

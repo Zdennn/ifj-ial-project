@@ -461,6 +461,19 @@ static int test_functions(void)
                     "MOVE LF@a$0 LF@$p0\nMOVE LF@b$1 LF@$p1\n");
     free(s);
 
+    /* parametry funkce po jednom */
+    cap_begin();
+    gen_function_begin("f");
+    gen_function_param("a$0", 0);
+    gen_function_param("b$1", 1);
+    gen_function_end();
+    s = cap_end();
+    failed += check("function param po jednom", s,
+                    "LABEL $func_f\nPUSHFRAME\n"
+                    "DEFVAR LF@a$0\nDEFVAR LF@b$1\n"
+                    "MOVE LF@a$0 LF@$p0\nMOVE LF@b$1 LF@$p1\n");
+    free(s);
+
     return failed;
 }
 

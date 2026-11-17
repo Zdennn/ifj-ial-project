@@ -232,6 +232,14 @@ void gen_print_stack(void);
 void gen_function_params(const char *const *names, size_t count);
 
 /**
+ * @brief Definuje jeden parametr funkce: DEFVAR LF@<jmeno> a MOVE LF@<jmeno> LF@$p<index>.
+ *        Volá se po gen_function_begin, pro každý parametr v pořadí z definice.
+ * @param name  Jedinečné jméno parametru pro generátor (SymbolData.gen_name), nesmí být NULL.
+ * @param index Pořadí parametru od nuly.
+ */
+void gen_function_param(const char *name, size_t index);
+
+/**
  * @brief Začátek if: vyjme podmínku (bool) ze zásobníku a při false skočí na $else_<id>.
  * @param id Unikátní číslo z gen_new_label_id(), stejné pro celý if.
  */

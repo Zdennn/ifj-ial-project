@@ -38,7 +38,8 @@ typedef struct
     DataType data_type;     // Typ proměnné / návratový typ funkce
 
     // Pro proměnné
-    bool is_var; // true = var, false = val
+    bool is_var;    // true = var, false = val
+    char *gen_name; // Jedinečné jméno v generovaném kódu (jméno$číslo)
 
     // Pro funkce
     int param_count;       // Počet parametrů funkce

@@ -550,7 +550,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
                 printError(ERR_SYN);
             break;
 
-        case TOKEN_RETURN:
+                case TOKEN_RETURN:
             match(TOKEN_RETURN);
             if (!has_explicit_return)
             {
@@ -560,10 +560,27 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             if (current_token.type != TOKEN_EOL && current_token.type != TOKEN_EOF)
             {
                 last_type = parse_value();
+
+                /* GEN: hodnotu vyjmeme ze zásobníku a vrátíme z funkce */
+                if (expected_return_type == TYPE_UNIT)
+                {
+                    gen_pop("GF@$tmp1"); // GEN: u funkce s explicitním Unit se hodnota zahodí
+                    gen_function_return_unit();
+                }
+                else
+                {
+                    if (last_type == TYPE_INT && expected_return_type == TYPE_DOUBLE)
+                    {
+                        gen_instr("INT2FLOATS", NULL, NULL, NULL); // GEN: implicitní Int -> Double
+                    }
+                    gen_pop("GF@$tmp1");
+                    gen_function_return("GF@$tmp1");
+                }
             }
             else
             {
                 last_type = TYPE_UNIT;
+                gen_function_return_unit(); // GEN: samostatný return
             }
 
             if (expected_return_type != TYPE_UNIT && last_type != expected_return_type)
@@ -1015,6 +1032,36 @@ DataType parse_expression()
                                            .prec_sym = input_prec_index,
                                            .data_type = expression_to_DataType(current_token),
                                            .token_type = current_token.type});
+
+            /* Operand (literál nebo proměnná): hodnotu hned vložíme na datový zásobník */
+            if (input_prec_index == PREC_ID)
+            {
+                switch (current_token.type)
+                {
+                case TOKEN_INT_HOD:
+                    gen_push_int(current_token.int_val);
+                    break;
+                case TOKEN_DOUBLE_HOD:
+                    gen_push_float(current_token.double_val);
+                    break;
+                case TOKEN_STRING_HOD:
+                    gen_push_string(current_token.string);
+                    break;
+                case TOKEN_UNIT:
+                    gen_push("string@()");
+                    break;
+                case TOKEN_ID: {
+                    SymbolData *sym = symtable_lookup(current_token.string);
+                    if (sym != NULL && sym->symbol_type == SYM_VARIABLE)
+                    {
+                        gen_push_var(sym->gen_name);
+                    }
+                    break;
+                }
+                default:
+                    break;
+                }
+            }
             get_next_token_from_array();
             break;
 
@@ -1075,6 +1122,7 @@ DataType parse_expression()
                     TokenType op_token = stack_items[1].token_type;
 
                     result_type = kontrola_typu(left_type, op, right_type, op_token);
+                    gen_binary(op_token, left_type, right_type);
                 }
                 else
                 {
@@ -1120,14 +1168,21 @@ void parse_function()
         get_next_token_from_array();
     }
 
+    gen_function_begin(function_name); // GEN: začátek funkce (výstup se bufferuje)
+
     match(TOKEN_LZAVORKA);
 
+    size_t param_index = 0; // GEN: pořadí parametru
     while (current_token.type != TOKEN_PZAVORKA)
     {
         Token token_name = match(TOKEN_ID);
         match(TOKEN_DVOJTEC);
         Token token_type = match_type();
         symtable_insert_var(token_name.string, token_to_dataType(token_type), false);
+
+        SymbolData *param = symtable_lookup_current(token_name.string); // GEN
+        gen_function_param(param->gen_name, param_index++);             // GEN
+
         if (current_token.type == TOKEN_CARKA)
         {
             match(TOKEN_CARKA);
@@ -1194,6 +1249,10 @@ void parse_function()
             }
         }
     }
+
+    /* TODO: skutečný návrat hodnoty (poslední výraz, return); zatím vždy Unit */
+    gen_function_return_unit(); // GEN
+    gen_function_end();         // GEN: vypíše LABEL, PUSHFRAME, DEFVAR a tělo
 
     symtable_pop_scope();
 }

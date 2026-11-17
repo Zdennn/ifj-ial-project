@@ -534,6 +534,23 @@ void gen_print_stack(void)
     gen_instr("WRITE", "GF@$tmp1", NULL, NULL);
 }
 
+void gen_function_param(const char *name, size_t index)
+{
+    if (name == NULL)
+    {
+        internal_error("gen_function_param dostal NULL");
+    }
+
+    char var[GEN_NAME_MAX];
+    char src[GEN_NAME_MAX];
+
+    gen_defvar_local(name);
+
+    gen_var(var, sizeof(var), "LF", name);
+    snprintf(src, sizeof(src), "LF@$p%zu", index);
+    gen_instr("MOVE", var, src, NULL);
+}
+
 void gen_function_params(const char *const *names, size_t count)
 {
     if (names == NULL && count > 0)
@@ -541,16 +558,9 @@ void gen_function_params(const char *const *names, size_t count)
         internal_error("gen_function_params dostal NULL");
     }
 
-    char var[GEN_NAME_MAX];
-    char src[GEN_NAME_MAX];
-
     for (size_t i = 0; i < count; i++)
     {
-        gen_defvar_local(names[i]);
-
-        gen_var(var, sizeof(var), "LF", names[i]);
-        snprintf(src, sizeof(src), "LF@$p%zu", i);
-        gen_instr("MOVE", var, src, NULL);
+        gen_function_param(names[i], i);
     }
 }
 
