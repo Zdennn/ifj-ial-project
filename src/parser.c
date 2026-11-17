@@ -29,6 +29,19 @@ Token current_token;
 TokenArray tokens;
 char *main_name;
 
+/* GEN: true, pokud poslední příkaz nechal na datovém zásobníku hodnotu (výraz nebo volání) */
+static bool stmt_value_pending = false;
+
+/* GEN: zahodí hodnotu posledního příkazu, pokud nějaká na zásobníku leží */
+static void discard_pending_value(void)
+{
+    if (stmt_value_pending)
+    {
+        gen_pop("GF@$tmp1");
+        stmt_value_pending = false;
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 const char *getTokenName(TokenType type)
 {
@@ -293,6 +306,9 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
         DataType final_var_type = {0};
         DataType declared_type = {0};
 
+        discard_pending_value();    // GEN: předchozí příkaz nebyl poslední, jeho hodnota se zahodí
+        stmt_value_pending = false; // GEN: tenhle příkaz zatím žádnou hodnotu nemá
+
         switch (current_token.type)
         {
         case TOKEN_VAR:
@@ -422,6 +438,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             symtable_push_scope();
             DataType type_then = parse_block(expected_return_type, has_explicit_return);
             symtable_pop_scope();
+            discard_pending_value(); // GEN
 
             gen_if_else(if_id); // GEN: JUMP na konec if a návěští else
 
@@ -446,10 +463,12 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
                 symtable_push_scope();
                 type_else = parse_block(expected_return_type, has_explicit_return);
                 symtable_pop_scope();
+                discard_pending_value(); // GEN
             }
             else
             {
                 type_else = parse_value();
+                gen_pop("GF@$tmp1"); // GEN: hodnota větve se zahodí
                 if (current_token.type == TOKEN_EOL)
                 {
                     match(TOKEN_EOL);
@@ -496,6 +515,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             symtable_push_scope();
             parse_block(expected_return_type, has_explicit_return);
             symtable_pop_scope();
+            discard_pending_value(); // GEN
             gen_while_end(while_id); // GEN: JUMP na začátek a návěští konce cyklu
             last_type = TYPE_UNIT;
             break;
@@ -588,6 +608,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             else
             {
                 last_type = parse_value();
+                stmt_value_pending = true; // GEN
             }
 
             if (current_token.type == TOKEN_EOL)
@@ -654,6 +675,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             {
                 match(TOKEN_EOL);
             }
+            stmt_value_pending = true; // GEN
             break;
 
         default:
@@ -1224,6 +1246,7 @@ DataType parse_expression()
 void parse_function()
 {
     symtable_push_scope();
+    stmt_value_pending = false; // GEN: čistý stav pro novou funkci
 
     if (current_token.type == TOKEN_ZAVINAC)
     {
@@ -1312,6 +1335,7 @@ void parse_function()
     {
         // Jednořádková funkce
         actual_return = parse_value();
+        stmt_value_pending = true; // GEN: hodnota těla zůstala na zásobníku
 
         if (current_token.type == TOKEN_EOL)
         {
@@ -1341,9 +1365,31 @@ void parse_function()
         }
     }
 
-    /* TODO: skutečný návrat hodnoty (poslední výraz, return); zatím vždy Unit */
-    gen_function_return_unit(); // GEN
-    gen_function_end();         // GEN: vypíše LABEL, PUSHFRAME, DEFVAR a tělo
+    /* GEN: návratová hodnota funkce */
+    if (stmt_value_pending)
+    {
+        // poslední příkaz těla byl výraz nebo volání, jeho hodnota je výsledek funkce
+        stmt_value_pending = false;
+        if (explicit && expected_return == TYPE_UNIT)
+        {
+            gen_pop("GF@$tmp1"); // u explicitního Unit se hodnota zahodí
+            gen_function_return_unit();
+        }
+        else
+        {
+            if (explicit && expected_return == TYPE_DOUBLE && actual_return == TYPE_INT)
+            {
+                gen_instr("INT2FLOATS", NULL, NULL, NULL); // implicitní Int -> Double
+            }
+            gen_pop("GF@$tmp1");
+            gen_function_return("GF@$tmp1");
+        }
+    }
+    else
+    {
+        gen_function_return_unit(); // tělo končí definicí, přiřazením, cyklem nebo if
+    }
 
+    gen_function_end(); // GEN: vypíše LABEL, PUSHFRAME, DEFVAR a tělo
     symtable_pop_scope();
 }
