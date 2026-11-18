@@ -42,7 +42,10 @@ char *getErrorName(ErrorCodes error)
 
 void printError(ErrorCodes error)
 {
-    fprintf(stderr, "Chyba: %s (kod: %d)\n", getErrorName(error), error);
+    if (error != ERR_OK)
+    {
+        fprintf(stderr, "Chyba: %s (kod: %d)\n", getErrorName(error), error);
+    }
     exit(error);
 }
 

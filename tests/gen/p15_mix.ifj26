@@ -1,0 +1,24 @@
+import ifj26.*
+
+extension (value: Int)
+  def sq: Int = value * value
+  def addTo(other: Int): Int = value + other
+
+def add(a: Int)(b: Int): Int = a + b
+
+def isEven(n: Int): Boolean = n - n / 2 * 2 == 0
+
+@main def run(): Unit =
+  var sum = 0
+  for i <- 1 to 6 if isEven(i) do
+    sum = sum + i.sq
+  print(s"sum=${sum} ")
+  val t = if sum > 50 && !(sum == 0) then "big" else "small"
+  print(s"$t ")
+  print(s"${add(1)(2) * -2} ")
+  val x = -3
+  print(s"${x.addTo(10)} ")
+  print("abc".length.toString)
+  print(" ")
+  val d = 2.7
+  print(s"${d.floor}")
