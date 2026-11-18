@@ -6,8 +6,8 @@
  */
 
 #include "error.h"
-#include "parser.h"
 #include "generator.h"
+#include "parser.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,7 +18,10 @@ int main(int argc, char *argv[])
     (void)argv;
     gen_init(stdout);
     int result = parse();
-    printError(result);
+    if (result != ERR_OK)
+    {
+        printError(result);
+    }
 
     return 0;
 }

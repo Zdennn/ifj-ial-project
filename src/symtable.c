@@ -91,6 +91,7 @@ void symtable_pop_scope()
     Scope *to_delete = current_scope;
     current_scope = current_scope->parent;
     bst_dispose(to_delete->tree);
+    free(to_delete->tree);
     free(to_delete);
 }
 
@@ -162,7 +163,7 @@ void symtable_insert_function(char *name, DataType return_type, int param_count,
     data->is_main = is_main;
     data->is_var = false;
     data->gen_name = NULL;
-    
+
     if (param_count > 0 && param_types != NULL)
     {
         data->param_types = malloc(param_count * sizeof(DataType));

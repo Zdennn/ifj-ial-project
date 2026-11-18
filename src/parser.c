@@ -809,6 +809,7 @@ ErrorCodes define_function_header()
     }
 
     symtable_insert_function(name, return_type, out_param_count, param_types, main_flag);
+    free(param_types);
 
     if (main_flag)
     {
@@ -855,6 +856,9 @@ ErrorCodes parse()
     {
         parse_function();
     }
+
+    symtable_dispose();
+    token_array_free(&tokens);
 
     return ERR_OK;
 }

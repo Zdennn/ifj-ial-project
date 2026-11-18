@@ -39,6 +39,14 @@ void token_array_append(TokenArray *arr, Token new_token)
 
 void token_array_free(TokenArray *arr)
 {
+    for (int i = 0; i < arr->count; i++)
+    {
+        if (arr->items[i].string != NULL)
+        {
+            free(arr->items[i].string);
+        }
+    }
+
     if (arr->items != NULL)
     {
         free(arr->items);
