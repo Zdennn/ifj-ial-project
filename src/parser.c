@@ -291,7 +291,8 @@ static DataType parse_call(Token token_id)
     return symbol->data_type;
 }
 
-static DataType parse_if(DataType expected_return_type, bool has_explicit_return, int pocet_odsazeni); /* dopředná deklarace */
+static DataType parse_if(DataType expected_return_type, bool has_explicit_return,
+                         int pocet_odsazeni); /* dopředná deklarace */
 
 static DataType parse_value()
 {
@@ -391,16 +392,17 @@ static DataType parse_if(DataType expected_return_type, bool has_explicit_return
 
     /* BOOLTHEN: if bez else. Else existuje jen tehdy, když stejně odsazený řádek začíná tokenem else. */
     bool else_same_line = current_token.type == TOKEN_ELSE; /* CONTROL: else na stejném řádku za jednořádkovým then */
-    bool has_else = else_same_line || (current_token.type == TOKEN_ODSAZENI && current_token.int_val == pocet_odsazeni &&
-                                       token_index < tokens.count && tokens.items[token_index].type == TOKEN_ELSE);
+    bool has_else =
+        else_same_line || (current_token.type == TOKEN_ODSAZENI && current_token.int_val == pocet_odsazeni &&
+                           token_index < tokens.count && tokens.items[token_index].type == TOKEN_ELSE);
     if (!has_else)
     {
         /* CONTROL: bez else není if výrazem, jeho hodnotou je Unit */
-        gen_pop("GF@$tmp1");   // GEN: hodnota větve then se zahodí
-        gen_push("string@()"); // GEN: výsledek při splněné podmínce
-        gen_if_else(if_id);    // GEN: JUMP na konec if a návěští else
-        gen_push("string@()"); // GEN: výsledek při nesplněné podmínce
-        gen_if_end(if_id);     // GEN: návěští konce if
+        gen_pop("GF@$tmp1");     // GEN: hodnota větve then se zahodí
+        gen_push("string@()");   // GEN: výsledek při splněné podmínce
+        gen_if_else(if_id);      // GEN: JUMP na konec if a návěští else
+        gen_push("string@()");   // GEN: výsledek při nesplněné podmínce
+        gen_if_end(if_id);       // GEN: návěští konce if
         if_expr_error = ERR_SYN; // CONTROL: bez else nelze if použít jako výraz
         return TYPE_UNIT;
     }
@@ -610,8 +612,8 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
         DataType final_var_type = {0};
         DataType declared_type = {0};
 
-        discard_pending_value();    // GEN: předchozí příkaz nebyl poslední, jeho hodnota se zahodí
-        stmt_value_pending = false; // GEN: tenhle příkaz zatím žádnou hodnotu nemá
+        discard_pending_value();      // GEN: předchozí příkaz nebyl poslední, jeho hodnota se zahodí
+        stmt_value_pending = false;   // GEN: tenhle příkaz zatím žádnou hodnotu nemá
         stmt_indent = pocet_odsazeni; // CONTROL: odsazení řádku, na kterém příkaz začíná
 
         switch (current_token.type)
@@ -1036,6 +1038,7 @@ ErrorCodes define_function_header()
 
         sizes[count] = out_param_count;
         types[count] = param_types;
+        free(param_types);
         count++;
         param_count += out_param_count;
     }
@@ -1186,7 +1189,8 @@ static void rewrite_extensions(void)
                 if (cur.int_val == def_indent)
                 {
                     int d = i + 1; /* token def, odsazení před ním se zahodí */
-                    if (d + 3 >= tokens.count || tokens.items[d].type != TOKEN_DEF || tokens.items[d + 1].type != TOKEN_ID)
+                    if (d + 3 >= tokens.count || tokens.items[d].type != TOKEN_DEF ||
+                        tokens.items[d + 1].type != TOKEN_ID)
                     {
                         printError(ERR_SYN);
                     }
@@ -1639,6 +1643,7 @@ DataType parse_expression()
         {
             match(TOKEN_LZAVORKA);
             match(TOKEN_PZAVORKA);
+            stack_free(&stack);
             return TYPE_UNIT;
         }
     }
@@ -1647,10 +1652,12 @@ DataType parse_expression()
     while (true)
     {
         /* VALMEM: člen hodnoty (výraz.id) se zpracuje hned za operandem, váže silněji než všechny operátory */
-        if (current_token.type == TOKEN_TECKA && token_index < tokens.count && tokens.items[token_index].type == TOKEN_ID)
+        if (current_token.type == TOKEN_TECKA && token_index < tokens.count &&
+            tokens.items[token_index].type == TOKEN_ID)
         {
             StackItem *operand = stack_top(&stack);
-            if (operand->sem_type == SEM_NONTERMINAL || (operand->sem_type == SEM_TERMINAL && operand->prec_sym == PREC_ID))
+            if (operand->sem_type == SEM_NONTERMINAL ||
+                (operand->sem_type == SEM_TERMINAL && operand->prec_sym == PREC_ID))
             {
                 match(TOKEN_TECKA);
                 Token member = match(TOKEN_ID);
@@ -1722,6 +1729,7 @@ DataType parse_expression()
             {
                 if (symtable_lookup(current_token.string) == NULL)
                 {
+                    stack_free(&stack);
                     printError(ERR_SEM_UNDEF);
                 }
             }
@@ -1843,23 +1851,23 @@ DataType parse_expression()
                     gen_unary_minus(operand_type); // GEN: změna znaménka hodnoty na zásobníku
                 }
                 else
-                // Pravidlo: E -> ! E (BOOLTHEN)
-                if (stack_items[1].sem_type == SEM_TERMINAL && stack_items[1].token_type == TOKEN_NOT &&
-                    stack_items[0].sem_type == SEM_NONTERMINAL)
-                {
-                    if (stack_items[0].data_type != TYPE_BOOLEAN)
+                    // Pravidlo: E -> ! E (BOOLTHEN)
+                    if (stack_items[1].sem_type == SEM_TERMINAL && stack_items[1].token_type == TOKEN_NOT &&
+                        stack_items[0].sem_type == SEM_NONTERMINAL)
+                    {
+                        if (stack_items[0].data_type != TYPE_BOOLEAN)
+                        {
+                            stack_free(&stack);
+                            printError(ERR_SEM_TYPE);
+                        }
+                        result_type = TYPE_BOOLEAN;
+                        gen_instr("NOTS", NULL, NULL, NULL); // GEN: logická negace na zásobníku
+                    }
+                    else
                     {
                         stack_free(&stack);
-                        printError(ERR_SEM_TYPE);
+                        printError(ERR_SYN);
                     }
-                    result_type = TYPE_BOOLEAN;
-                    gen_instr("NOTS", NULL, NULL, NULL); // GEN: logická negace na zásobníku
-                }
-                else
-                {
-                    stack_free(&stack);
-                    printError(ERR_SYN);
-                }
             }
             else if (count == 3)
             {
@@ -1910,11 +1918,12 @@ DataType parse_expression()
             break;
 
         default:
+            stack_free(&stack);
             printError(ERR_SYN);
             break;
         }
     }
-
+    stack_free(&stack);
     return (DataType){0};
 }
 
