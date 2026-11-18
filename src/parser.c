@@ -157,6 +157,8 @@ Token match_type()
     case TOKEN_UNIT:
         return match(TOKEN_UNIT);
         break;
+    case TOKEN_BOOLEAN: /* BOOLTHEN */
+        return match(TOKEN_BOOLEAN);
     default:
         printError(ERR_SYN);
         return (Token){0};
@@ -179,6 +181,8 @@ DataType token_to_dataType(Token token)
     case TOKEN_UNIT:
         return TYPE_UNIT;
         break;
+    case TOKEN_BOOLEAN: /* BOOLTHEN */
+        return TYPE_BOOLEAN;
     default:
         printError(ERR_SYN);
         return (DataType){0};
@@ -256,6 +260,90 @@ static DataType parse_value()
     }
 
     return parse_expression();
+}
+
+DataType parse_block(DataType expected_return_type, bool has_explicit_return); /* dopředná deklarace pro parse_if */
+
+/* Zpracování příkazu if (volá se hned po zjištění tokenu if). Pro else if se volá rekurzivně. */
+static DataType parse_if(DataType expected_return_type, bool has_explicit_return, int pocet_odsazeni)
+{
+    DataType type_of_expresion;
+    DataType last_type = TYPE_UNIT;
+
+    match(TOKEN_IF);
+    int if_id = gen_new_label_id(); // GEN: unikátní číslo pro návěští tohoto if
+    type_of_expresion = parse_expression();
+    if (type_of_expresion != TYPE_BOOLEAN)
+    {
+        printError(ERR_SEM_TYPE);
+    }
+    gen_if_begin(if_id); // GEN: vyjme podmínku ze zásobníku, při false skočí na else
+    match(TOKEN_THEN);
+    match(TOKEN_EOL);
+    // Then musí mít větší odsazení než if
+    if (current_token.type != TOKEN_ODSAZENI || current_token.int_val <= pocet_odsazeni)
+    {
+        printError(ERR_SYN);
+    }
+    symtable_push_scope();
+    DataType type_then = parse_block(expected_return_type, has_explicit_return);
+    symtable_pop_scope();
+    discard_pending_value(); // GEN
+
+    gen_if_else(if_id); // GEN: JUMP na konec if a návěští else
+
+    // Else musí mít stejné odsazení jako if!
+    if (current_token.type != TOKEN_ODSAZENI || current_token.int_val != pocet_odsazeni)
+    {
+        printError(ERR_SYN);
+    }
+    match(TOKEN_ODSAZENI);
+    match(TOKEN_ELSE);
+
+    DataType type_else = TYPE_UNIT;
+    if (current_token.type == TOKEN_EOL)
+    {
+        match(TOKEN_EOL);
+
+        // Else musí mít větší odsazení než if/else
+        if (current_token.type != TOKEN_ODSAZENI || current_token.int_val <= pocet_odsazeni)
+        {
+            printError(ERR_SYN);
+        }
+        symtable_push_scope();
+        type_else = parse_block(expected_return_type, has_explicit_return);
+        symtable_pop_scope();
+        discard_pending_value(); // GEN
+    }
+    else
+    {
+        type_else = parse_value();
+        gen_pop("GF@$tmp1"); // GEN: hodnota větve se zahodí
+        if (current_token.type == TOKEN_EOL)
+        {
+            match(TOKEN_EOL);
+        }
+    }
+
+    gen_if_end(if_id); // GEN: návěští konce if
+
+    if (type_then == type_else)
+    {
+        last_type = type_then;
+    }
+    else if ((type_then == TYPE_INT && type_else == TYPE_DOUBLE) ||
+             (type_then == TYPE_DOUBLE && type_else == TYPE_INT))
+    {
+        last_type = TYPE_DOUBLE;
+    }
+    else
+    {
+        // rozdilne typy
+        last_type = TYPE_UNIT;
+    }
+
+
+    return last_type;
 }
 
 DataType parse_block(DataType expected_return_type, bool has_explicit_return)
@@ -413,78 +501,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             last_type = TYPE_UNIT;
             break;
         case TOKEN_IF:
-            match(TOKEN_IF);
-            int if_id = gen_new_label_id(); // GEN: unikátní číslo pro návěští tohoto if
-            type_of_expresion = parse_expression();
-            if (type_of_expresion != TYPE_BOOLEAN)
-            {
-                printError(ERR_SEM_TYPE);
-            }
-            gen_if_begin(if_id); // GEN: vyjme podmínku ze zásobníku, při false skočí na else
-            match(TOKEN_THEN);
-            match(TOKEN_EOL);
-            // Then musí mít větší odsazení než if
-            if (current_token.type != TOKEN_ODSAZENI || current_token.int_val <= pocet_odsazeni)
-            {
-                printError(ERR_SYN);
-            }
-            symtable_push_scope();
-            DataType type_then = parse_block(expected_return_type, has_explicit_return);
-            symtable_pop_scope();
-            discard_pending_value(); // GEN
-
-            gen_if_else(if_id); // GEN: JUMP na konec if a návěští else
-
-            // Else musí mít stejné odsazení jako if!
-            if (current_token.type != TOKEN_ODSAZENI || current_token.int_val != pocet_odsazeni)
-            {
-                printError(ERR_SYN);
-            }
-            match(TOKEN_ODSAZENI);
-            match(TOKEN_ELSE);
-
-            DataType type_else = TYPE_UNIT;
-            if (current_token.type == TOKEN_EOL)
-            {
-                match(TOKEN_EOL);
-
-                // Else musí mít větší odsazení než if/else
-                if (current_token.type != TOKEN_ODSAZENI || current_token.int_val <= pocet_odsazeni)
-                {
-                    printError(ERR_SYN);
-                }
-                symtable_push_scope();
-                type_else = parse_block(expected_return_type, has_explicit_return);
-                symtable_pop_scope();
-                discard_pending_value(); // GEN
-            }
-            else
-            {
-                type_else = parse_value();
-                gen_pop("GF@$tmp1"); // GEN: hodnota větve se zahodí
-                if (current_token.type == TOKEN_EOL)
-                {
-                    match(TOKEN_EOL);
-                }
-            }
-
-            gen_if_end(if_id); // GEN: návěští konce if
-
-            if (type_then == type_else)
-            {
-                last_type = type_then;
-            }
-            else if ((type_then == TYPE_INT && type_else == TYPE_DOUBLE) ||
-                     (type_then == TYPE_DOUBLE && type_else == TYPE_INT))
-            {
-                last_type = TYPE_DOUBLE;
-            }
-            else
-            {
-                // rozdilne typy
-                last_type = TYPE_UNIT;
-            }
-
+            last_type = parse_if(expected_return_type, has_explicit_return, pocet_odsazeni); // if včetně else
             break;
         case TOKEN_WHILE:
             match(TOKEN_WHILE);
