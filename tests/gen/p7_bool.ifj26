@@ -1,0 +1,14 @@
+import ifj26.*
+
+def both(a: Boolean, b: Boolean): Boolean =
+  a && b
+
+@main def run(): Unit =
+  val in = readBoolean()
+  val ok = 2 > 1
+  val r = both(in, ok)
+  print(r)
+  print(" ")
+  print(toStr(!r))
+  print(" ")
+  print(toStr(both(true, false)))
