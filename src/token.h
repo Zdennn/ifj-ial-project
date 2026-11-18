@@ -57,6 +57,20 @@ typedef enum
     TOKEN_NE_ROVNO,    // !=
     TOKEN_STEJNO,      // ==
 
+
+    // BOOLTHEN
+    TOKEN_BOOLEAN,
+    TOKEN_TRUE_HOD,
+    TOKEN_FALSE_HOD,
+    TOKEN_NOT, // !
+    TOKEN_AND, // &&
+    TOKEN_OR,  // ||
+
+    // CONTROL
+    TOKEN_FOR,
+    TOKEN_LARROW, // <-
+    TOKEN_INTERP_END, // INTERPOLATEDS: konec ${výrazu}, vzniká jen uvnitř interpolovaného řetězce
+    TOKEN_EXTENSION, // EXTKW: klíčové slovo extension
 } TokenType;
 
 typedef struct

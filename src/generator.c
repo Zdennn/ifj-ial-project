@@ -498,6 +498,165 @@ void gen_binary(TokenType op, DataType left, DataType right)
     }
 }
 
+/* Zkratové && a || (BOOLTHEN): čísla návěští rozpracovaných operátorů. */
+#define GEN_LOGIC_MAX 256
+static int logic_ids[GEN_LOGIC_MAX];
+static int logic_top = 0;
+
+/* Voláme hned po načtení operátoru, levý operand je na datovém zásobníku. */
+void gen_logic_begin(TokenType op)
+{
+    char short_label[GEN_NAME_MAX];
+    int id = gen_new_label_id();
+
+    if (logic_top >= GEN_LOGIC_MAX)
+    {
+        internal_error("gen_logic_begin: prilis hluboke vnoreni");
+    }
+    logic_ids[logic_top++] = id;
+
+    gen_label_name(short_label, sizeof(short_label), op == TOKEN_AND ? "and_short" : "or_short", id);
+    gen_instr("POPS", "GF@$tmp1", NULL, NULL);
+    gen_instr("JUMPIFEQ", short_label, "GF@$tmp1", op == TOKEN_AND ? "bool@false" : "bool@true");
+}
+
+/* Voláme při redukci E op E, pravý operand je na datovém zásobníku. */
+void gen_logic_end(TokenType op)
+{
+    char short_label[GEN_NAME_MAX];
+    char end_label[GEN_NAME_MAX];
+
+    if (logic_top <= 0)
+    {
+        internal_error("gen_logic_end: chybi gen_logic_begin");
+    }
+    int id = logic_ids[--logic_top];
+
+    gen_label_name(short_label, sizeof(short_label), op == TOKEN_AND ? "and_short" : "or_short", id);
+    gen_label_name(end_label, sizeof(end_label), "logic_end", id);
+
+    gen_instr("JUMP", end_label, NULL, NULL);
+    gen_label(short_label);
+    gen_instr("PUSHS", op == TOKEN_AND ? "bool@false" : "bool@true", NULL, NULL);
+    gen_label(end_label);
+}
+
+/* CONTROL: po if použitém jako výraz s větvemi Int a Double převede výsledek na Double. Typ se zjišťuje za běhu,
+ * protože při generování první větve ještě není známý typ druhé. */
+void gen_if_to_double(int id)
+{
+    char label[GEN_NAME_MAX];
+    gen_label_name(label, sizeof(label), "ifconv", id);
+
+    gen_instr("POPS", "GF@$tmp1", NULL, NULL);
+    gen_instr("TYPE", "GF@$tmp2", "GF@$tmp1", NULL);
+    gen_instr("JUMPIFNEQ", label, "GF@$tmp2", "string@int");
+    gen_instr("INT2FLOAT", "GF@$tmp1", "GF@$tmp1", NULL);
+    gen_label(label);
+    gen_instr("PUSHS", "GF@$tmp1", NULL, NULL);
+}
+
+/* CONTROL: cyklus for. Skryté lokální proměnné cyklu: $fe<id> (konec rozsahu), $fs<id> (krok), $fc<id> (pomocná).
+ * Na zásobníku leží hodnoty od, do a případně krok (krok nahoře). */
+void gen_for_init(const char *var, int id, bool has_step)
+{
+    char name[GEN_NAME_MAX];
+    char end[GEN_NAME_MAX];
+    char step[GEN_NAME_MAX];
+    char loc[GEN_NAME_MAX];
+    char ok[GEN_NAME_MAX];
+
+    snprintf(name, sizeof(name), "$fe%d", id);
+    gen_defvar_local(name);
+    snprintf(end, sizeof(end), "LF@$fe%d", id);
+    snprintf(name, sizeof(name), "$fs%d", id);
+    gen_defvar_local(name);
+    snprintf(step, sizeof(step), "LF@$fs%d", id);
+    snprintf(name, sizeof(name), "$fc%d", id);
+    gen_defvar_local(name);
+    snprintf(loc, sizeof(loc), "LF@%s", var);
+
+    if (has_step)
+    {
+        gen_instr("POPS", step, NULL, NULL);
+        gen_label_name(ok, sizeof(ok), "for_step_ok", id);
+        gen_instr("JUMPIFNEQ", ok, step, "int@0");
+        gen_instr("EXIT", "int@40", NULL, NULL); /* nulový krok */
+        gen_label(ok);
+    }
+    else
+    {
+        gen_instr("MOVE", step, "int@1", NULL);
+    }
+    gen_instr("POPS", end, NULL, NULL);
+    gen_instr("POPS", loc, NULL, NULL);
+}
+
+/* CONTROL: začátek cyklu a kontrola rozsahu. inclusive je true pro to, false pro until. */
+void gen_for_begin(const char *var, int id, bool inclusive)
+{
+    char start[GEN_NAME_MAX];
+    char neg[GEN_NAME_MAX];
+    char body[GEN_NAME_MAX];
+    char done[GEN_NAME_MAX];
+    char loc[GEN_NAME_MAX];
+    char end[GEN_NAME_MAX];
+    char step[GEN_NAME_MAX];
+    char cond[GEN_NAME_MAX];
+
+    gen_label_name(start, sizeof(start), "for_start", id);
+    gen_label_name(neg, sizeof(neg), "for_neg", id);
+    gen_label_name(body, sizeof(body), "for_body", id);
+    gen_label_name(done, sizeof(done), "for_end", id);
+    snprintf(loc, sizeof(loc), "LF@%s", var);
+    snprintf(end, sizeof(end), "LF@$fe%d", id);
+    snprintf(step, sizeof(step), "LF@$fs%d", id);
+    snprintf(cond, sizeof(cond), "LF@$fc%d", id);
+
+    gen_label(start);
+    gen_instr("GT", cond, step, "int@0");
+    gen_instr("JUMPIFEQ", neg, cond, "bool@false");
+    /* kladný krok: to končí při i > konec, until při i >= konec */
+    gen_instr(inclusive ? "GT" : "LT", cond, loc, end);
+    gen_instr("JUMPIFEQ", done, cond, inclusive ? "bool@true" : "bool@false");
+    gen_instr("JUMP", body, NULL, NULL);
+    /* záporný krok: to končí při i < konec, until při i <= konec */
+    gen_label(neg);
+    gen_instr(inclusive ? "LT" : "GT", cond, loc, end);
+    gen_instr("JUMPIFEQ", done, cond, inclusive ? "bool@true" : "bool@false");
+    gen_label(body);
+}
+
+/* CONTROL: stráž cyklu for, hodnota podmínky je na zásobníku. Při nepravdě se přeskočí tělo. */
+void gen_for_guard(int id)
+{
+    char next[GEN_NAME_MAX];
+    gen_label_name(next, sizeof(next), "for_next", id);
+    gen_instr("POPS", "GF@$tmp1", NULL, NULL);
+    gen_instr("JUMPIFEQ", next, "GF@$tmp1", "bool@false");
+}
+
+/* CONTROL: konec cyklu for: přičtení kroku, skok na začátek a návěští konce. */
+void gen_for_end(const char *var, int id)
+{
+    char start[GEN_NAME_MAX];
+    char next[GEN_NAME_MAX];
+    char done[GEN_NAME_MAX];
+    char loc[GEN_NAME_MAX];
+    char step[GEN_NAME_MAX];
+
+    gen_label_name(start, sizeof(start), "for_start", id);
+    gen_label_name(next, sizeof(next), "for_next", id);
+    gen_label_name(done, sizeof(done), "for_end", id);
+    snprintf(loc, sizeof(loc), "LF@%s", var);
+    snprintf(step, sizeof(step), "LF@$fs%d", id);
+
+    gen_label(next);
+    gen_instr("ADD", loc, loc, step);
+    gen_instr("JUMP", start, NULL, NULL);
+    gen_label(done);
+}
+
 void gen_unary_minus(DataType type)
 {
     /* Násobení -1 zachová i záporné nuly u desetinných čísel. */
@@ -759,13 +918,32 @@ static void builtin_subStr(void)
     gen_function_end();
 }
 
+/* floor(x: Double): Double pro člen .floor (VALMEM). Jméno začíná $, takže se nemůže střetnout s funkcí uživatele. */
+static void builtin_floor(void)
+{
+    gen_function_begin("$floor");
+    gen_defvar_local("$r");
+    gen_defvar_local("$i");
+    gen_defvar_local("$c");
+    gen_instr("FLOAT2INT", "LF@$i", "LF@$p0", NULL); /* osekne k nule */
+    gen_instr("INT2FLOAT", "LF@$r", "LF@$i", NULL);
+    gen_instr("GT", "LF@$c", "LF@$r", "LF@$p0"); /* u záporných čísel je osekání větší než x */
+    gen_instr("JUMPIFEQ", "$floor_done", "LF@$c", "bool@false");
+    gen_instr("SUB", "LF@$r", "LF@$r", "float@0x1p+0");
+    gen_label("$floor_done");
+    gen_function_return("LF@$r");
+    gen_function_end();
+}
+
 void gen_builtins(void)
 {
     builtin_print();
     builtin_read("readLine", "string", "string@");
     builtin_read("readInt", "int", "int@0");
     builtin_read("readDouble", "float", "float@0x0p+0");
+    builtin_read("readBoolean", "bool", "bool@false"); /* BOOLTHEN */
     builtin_toStr();
+    builtin_floor(); /* VALMEM */
     builtin_unary("toInt", "FLOAT2INT");
     builtin_unary("strLength", "STRLEN");
     builtin_unary("chr", "INT2CHAR");

@@ -207,6 +207,43 @@ void gen_push_var(const char *gen_name);
 void gen_binary(TokenType op, DataType left, DataType right);
 
 /**
+ * Zkratové && a || (BOOLTHEN), první část: volat hned po načtení operátoru,
+ * když je levý operand na datovém zásobníku. Vyzvedne ho a při zkratu skočí na výsledek.
+ * @param op TOKEN_AND nebo TOKEN_OR.
+ */
+void gen_logic_begin(TokenType op);
+
+/**
+ * Zkratové && a || (BOOLTHEN), druhá část: volat při redukci E op E,
+ * když je pravý operand na datovém zásobníku. Vloží výsledek zkratu a koncové návěští.
+ * @param op TOKEN_AND nebo TOKEN_OR.
+ */
+void gen_logic_end(TokenType op);
+
+/**
+ * CONTROL: po if použitém jako výraz s větvemi Int a Double převede výsledek na Double, pokud je na zásobníku Int.
+ * Typ se zjišťuje za běhu, protože při generování první větve ještě není známý typ druhé.
+ * @param id Číslo z gen_new_label_id() pro návěští.
+ */
+void gen_if_to_double(int id);
+
+/**
+ * CONTROL: cyklus for, příprava. Ze zásobníku vyzvedne od, do a případně krok (krok nahoře), uloží je do řídicí
+ * proměnné a skrytých proměnných cyklu. Při zadaném kroku za běhu kontroluje, že není nulový (EXIT 40).
+ * @param var Jméno řídicí proměnné (už definované přes gen_defvar_local).
+ */
+void gen_for_init(const char *var, int id, bool has_step);
+
+/** CONTROL: začátek cyklu for a kontrola rozsahu. inclusive je true pro to, false pro until. */
+void gen_for_begin(const char *var, int id, bool inclusive);
+
+/** CONTROL: stráž cyklu for. Hodnotu podmínky vyjme ze zásobníku, při nepravdě přeskočí tělo. */
+void gen_for_guard(int id);
+
+/** CONTROL: konec cyklu for. Přičte krok, skočí na začátek a vloží návěští konce. */
+void gen_for_end(const char *var, int id);
+
+/**
  * @brief Unární mínus nad hodnotou na vrcholu zásobníku.
  * @param type TYPE_INT nebo TYPE_DOUBLE.
  */

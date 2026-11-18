@@ -41,10 +41,25 @@ void data_free_func(void *data)
 
     SymbolData *symData = (SymbolData *)data;
 
-    if (symData->symbol_type == SYM_FUNCTION && symData->param_types != NULL)
+    if (symData->symbol_type == SYM_FUNCTION)
     {
-        free(symData->param_types);
+        if (symData->param_types != NULL)
+        {
+            for (int i = 0; i < symData->param_count; i++)
+            {
+                if (symData->param_types[i] != NULL)
+                {
+                    free(symData->param_types[i]);
+                }
+            }
+            free(symData->param_types);
+        }
+        if (symData->param_sizes != NULL)
+        {
+            free(symData->param_sizes);
+        }
     }
+
     free(symData->gen_name); // u funkcí je NULL, free(NULL) je v pořádku
     free(symData);
 }
@@ -57,16 +72,23 @@ void symtable_init()
 
     bst_init(current_scope->tree, cmp_func, key_free_func, data_free_func);
 
-    symtable_insert_function("print", TYPE_UNIT, 1, (DataType[]){TYPE_ANY}, false);
-    symtable_insert_function("readLine", TYPE_STRING, 0, NULL, false);
-    symtable_insert_function("readInt", TYPE_INT, 0, NULL, false);
-    symtable_insert_function("readDouble", TYPE_DOUBLE, 0, NULL, false);
-    symtable_insert_function("toStr", TYPE_STRING, 1, (DataType[]){TYPE_ANY}, false);
-    symtable_insert_function("toInt", TYPE_INT, 1, (DataType[]){TYPE_DOUBLE}, false);
-    symtable_insert_function("strLength", TYPE_INT, 1, (DataType[]){TYPE_STRING}, false);
-    symtable_insert_function("subStr", TYPE_STRING, 3, (DataType[]){TYPE_STRING, TYPE_INT, TYPE_INT}, false);
-    symtable_insert_function("ord", TYPE_INT, 2, (DataType[]){TYPE_STRING, TYPE_INT}, false);
-    symtable_insert_function("chr", TYPE_STRING, 1, (DataType[]){TYPE_INT}, false);
+    int size_0 = 0;
+    int size_1 = 1;
+    int size_2 = 2;
+    int size_3 = 3;
+
+    symtable_insert_function("print", TYPE_UNIT, 1, &size_1, (DataType *[]){(DataType[]){TYPE_ANY}}, false);
+    symtable_insert_function("readLine", TYPE_STRING, 1, &size_0, (DataType *[]){NULL}, false);
+    symtable_insert_function("readInt", TYPE_INT, 1, &size_0, (DataType *[]){NULL}, false);
+    symtable_insert_function("readDouble", TYPE_DOUBLE, 1, &size_0, (DataType *[]){NULL}, false);
+    symtable_insert_function("readBoolean", TYPE_BOOLEAN, 1, &size_0, (DataType *[]){NULL}, false); /* BOOLTHEN */
+    symtable_insert_function("toStr", TYPE_STRING, 1, &size_1, (DataType *[]){(DataType[]){TYPE_ANY}}, false);
+    symtable_insert_function("toInt", TYPE_INT, 1, &size_1, (DataType *[]){(DataType[]){TYPE_DOUBLE}}, false);
+    symtable_insert_function("strLength", TYPE_INT, 1, &size_1, (DataType *[]){(DataType[]){TYPE_STRING}}, false);
+    symtable_insert_function("subStr", TYPE_STRING, 1, &size_3,
+                             (DataType *[]){(DataType[]){TYPE_STRING, TYPE_INT, TYPE_INT}}, false);
+    symtable_insert_function("ord", TYPE_INT, 1, &size_2, (DataType *[]){(DataType[]){TYPE_STRING, TYPE_INT}}, false);
+    symtable_insert_function("chr", TYPE_STRING, 1, &size_1, (DataType *[]){(DataType[]){TYPE_INT}}, false);
 }
 
 void symtable_dispose()
@@ -153,7 +175,8 @@ void symtable_insert_var(char *name, DataType type, bool is_var)
     bst_insert(current_scope->tree, data->name, data);
 }
 
-void symtable_insert_function(char *name, DataType return_type, int param_count, DataType *param_types, bool is_main)
+void symtable_insert_function(char *name, DataType return_type, int param_count, int *param_sizes,
+                              DataType **param_types, bool is_main)
 {
     SymbolData *data = malloc(sizeof(SymbolData));
     data->name = strdup(name);
@@ -166,12 +189,28 @@ void symtable_insert_function(char *name, DataType return_type, int param_count,
 
     if (param_count > 0 && param_types != NULL)
     {
-        data->param_types = malloc(param_count * sizeof(DataType));
-        memcpy(data->param_types, param_types, param_count * sizeof(DataType));
+        data->param_sizes = malloc(param_count * sizeof(int));
+        data->param_types = malloc(param_count * sizeof(DataType *));
+
+        for (int i = 0; i < param_count; i++)
+        {
+            data->param_sizes[i] = param_sizes[i];
+
+            if (param_sizes[i] > 0 && param_types[i] != NULL)
+            {
+                data->param_types[i] = malloc(param_sizes[i] * sizeof(DataType));
+                memcpy(data->param_types[i], param_types[i], param_sizes[i] * sizeof(DataType));
+            }
+            else
+            {
+                data->param_types[i] = NULL;
+            }
+        }
     }
     else
     {
         data->param_types = NULL;
+        data->param_sizes = NULL;
     }
     bst_insert(current_scope->tree, data->name, data);
 }

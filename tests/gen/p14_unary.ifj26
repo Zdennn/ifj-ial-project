@@ -1,0 +1,19 @@
+import ifj26.*
+
+@main def run(): Unit =
+  val x = 5
+  val d = 2.5
+  print(toStr(-x))
+  print(" ")
+  print(toStr(2 * -3))
+  print(" ")
+  print(toStr(-x + 10))
+  print(" ")
+  print(toStr(-d))
+  print(" ")
+  print(toStr(- -4))
+  print(" ")
+  print(toStr(-(x + 1)))
+  print(" ")
+  print(toStr(10 - -2))
+  print(".")
