@@ -1152,6 +1152,12 @@ DataType parse_expression()
                 case TOKEN_STRING_HOD:
                     gen_push_string(current_token.string);
                     break;
+                case TOKEN_TRUE_HOD:        //BOOLTHEN
+                    gen_push("bool@true");
+                    break;
+                case TOKEN_FALSE_HOD:       //BOOLTHEN
+                    gen_push("bool@false");
+                    break;
                 case TOKEN_UNIT:
                     gen_push("string@()");
                     break;

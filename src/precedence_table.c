@@ -14,16 +14,30 @@
  * @brief Dvourozměrné pole reprezentující precedenční tabulku.
  * Řádek je terminál na vrcholu zásobníku, sloupec je token na vstupu.
  */
-static const PrecOperation prec_table[8][8] = {
-    //              * /     + -     rel     ==      (       )       id     $
-    /* * /  */ {PREC_R, PREC_R, PREC_R, PREC_R, PREC_S, PREC_R, PREC_S, PREC_R},
-    /* + -  */ {PREC_S, PREC_R, PREC_R, PREC_R, PREC_S, PREC_R, PREC_S, PREC_R},
-    /* rel  */ {PREC_S, PREC_S, PREC_ERR, PREC_ERR, PREC_S, PREC_R, PREC_S, PREC_R},
-    /* ==   */ {PREC_S, PREC_S, PREC_ERR, PREC_ERR, PREC_S, PREC_R, PREC_S, PREC_R},
-    /* (    */ {PREC_S, PREC_S, PREC_S, PREC_S, PREC_S, PREC_E, PREC_S, PREC_ERR},
-    /* )    */ {PREC_R, PREC_R, PREC_R, PREC_R, PREC_ERR, PREC_R, PREC_ERR, PREC_R},
-    /* id   */ {PREC_R, PREC_R, PREC_R, PREC_R, PREC_ERR, PREC_R, PREC_ERR, PREC_R},
-    /* $    */ {PREC_S, PREC_S, PREC_S, PREC_S, PREC_S, PREC_ERR, PREC_S, PREC_ERR}};
+static const PrecOperation prec_table[11][11] = {
+    //              !       * /     + -     rel     ==      &&      ||      (       )       id      $
+    /* !    */ {
+        {PREC_S}, {PREC_S}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_S}, {PREC_R}, {PREC_S}, {PREC_R}},
+    /* * /  */
+    {{PREC_S}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_S}, {PREC_R}, {PREC_S}, {PREC_R}},
+    /* + -  */
+    {{PREC_S}, {PREC_S}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_S}, {PREC_R}, {PREC_S}, {PREC_R}},
+    /* rel  */
+    {{PREC_S}, {PREC_S}, {PREC_S}, {PREC_ERR}, {PREC_ERR}, {PREC_R}, {PREC_R}, {PREC_S}, {PREC_R}, {PREC_S}, {PREC_R}},
+    /* ==   */
+    {{PREC_S}, {PREC_S}, {PREC_S}, {PREC_ERR}, {PREC_ERR}, {PREC_R}, {PREC_R}, {PREC_S}, {PREC_R}, {PREC_S}, {PREC_R}},
+    /* &&   */
+    {{PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_R}, {PREC_R}, {PREC_S}, {PREC_R}, {PREC_S}, {PREC_R}},
+    /* ||   */
+    {{PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_R}, {PREC_S}, {PREC_R}, {PREC_S}, {PREC_R}},
+    /* (    */
+    {{PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_E}, {PREC_S}, {PREC_ERR}},
+    /* )    */
+    {{PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_ERR}, {PREC_R}, {PREC_ERR}, {PREC_R}},
+    /* id   */
+    {{PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_ERR}, {PREC_R}, {PREC_ERR}, {PREC_R}},
+    /* $    */
+    {{PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_ERR}, {PREC_S}, {PREC_ERR}}};
 
 PrecOperation get_prec_operation(PrecIndex stack_top, PrecIndex input_token)
 {
@@ -56,11 +70,20 @@ PrecIndex token_to_index(TokenType type)
         return PREC_LZAVORKA;
     case TOKEN_PZAVORKA:
         return PREC_PZAVORKA;
+    case TOKEN_NOT: // BOOLTHEN
+        return PREC_NOT;
+    case TOKEN_AND: // BOOLTHEN
+        return PREC_AND;
+    case TOKEN_OR: // BOOLTHEN
+        return PREC_OR;
     case TOKEN_ID:
     case TOKEN_INT_HOD:
     case TOKEN_DOUBLE_HOD:
     case TOKEN_STRING_HOD:
     case TOKEN_UNIT:
+    case TOKEN_BOOLEAN:   // BOOLTHEN
+    case TOKEN_FALSE_HOD: // BOOLTHEN
+    case TOKEN_TRUE_HOD:  // BOOLTHEN
         return PREC_ID;
     case TOKEN_EOL:
     case TOKEN_THEN:

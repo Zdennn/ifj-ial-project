@@ -19,10 +19,13 @@
  */
 typedef enum
 {
+    PREC_NOT,        // !           BOOLTHEN
     PREC_MUL_DIV,    // / *
     PREC_PLUS_MINUS, // + -
     PREC_REL,        // < > <= >=
     PREC_EQUAL,      // == !=
+    PREC_AND,        // &&          BOOLTHEN
+    PREC_OR,         // ||          BOOLTHEN
     PREC_LZAVORKA,   // (
     PREC_PZAVORKA,   // )
     PREC_ID,         // identifikátor, proměnná, číslo, string ...

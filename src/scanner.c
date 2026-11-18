@@ -429,6 +429,21 @@ int get_next_token(Token *token)
                 token->type = TOKEN_DEF;
                 token->line = current_line;
             }
+            else if (strcmp(buffer, "Boolean") == 0)
+            {
+                token->type = TOKEN_BOOLEAN;
+                token->line = current_line;
+            }
+            else if (strcmp(buffer, "true") == 0)
+            {
+                token->type = TOKEN_TRUE_HOD;
+                token->line = current_line;
+            }
+            else if (strcmp(buffer, "false") == 0)
+            {
+                token->type = TOKEN_FALSE_HOD;
+                token->line = current_line;
+            }
             else
             {
                 if (len == 1 && buffer[0] == '_')
@@ -807,11 +822,37 @@ int get_next_token(Token *token)
                 token->line = current_line;
                 return ERR_OK;
             }
-            else if (c != EOF)
+            else
             {
-                unread_char(c, stdin);
-                return ERR_LEX;
+                if (c != EOF)
+                {
+                    unread_char(c, stdin);
+                    return ERR_LEX;
+                }
+                token->type = TOKEN_NOT; //BOOLTHEN
+                token->line = current_line;
+                return ERR_OK;
             }
+        }
+        if (c == '&') //BOOLTHEN
+        {
+            if ((c = read_char()) != EOF && c == '&') // &&
+            {
+                token->type = TOKEN_AND;
+                token->line = current_line;
+                return ERR_OK;
+            }
+            return ERR_LEX;
+        }
+        if (c == '|') //BOOLTHEN
+        {
+            if ((c = read_char()) != EOF && c == '|') // ||
+            {
+                token->type = TOKEN_OR;
+                token->line = current_line;
+                return ERR_OK;
+            }
+            return ERR_LEX;
         }
 
         return ERR_LEX;
