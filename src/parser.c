@@ -196,10 +196,20 @@ static DataType parse_call(Token token_id)
     if (symbol == NULL || symbol->symbol_type != SYM_FUNCTION)
         printError(ERR_SEM_UNDEF);
 
+    if (symbol->param_count == 0)
+    {
+        printError(ERR_SEM_ARG);
+    }
+
     int total_args = 0;
 
     for (int i = 0; i < symbol->param_count; i++)
     {
+        if (current_token.type != TOKEN_LZAVORKA)
+        {
+            printError(ERR_SEM_ARG);
+        }
+
         match(TOKEN_LZAVORKA);
 
         int arg = 0;
@@ -229,6 +239,15 @@ static DataType parse_call(Token token_id)
             {
                 match(TOKEN_CARKA);
                 carka++;
+
+                if (current_token.type == TOKEN_EOL)
+                {
+                    match(TOKEN_EOL);
+                }
+                if (current_token.type == TOKEN_PZAVORKA)
+                {
+                    break;
+                }
             }
             else
             {
@@ -238,13 +257,18 @@ static DataType parse_call(Token token_id)
 
         match(TOKEN_PZAVORKA);
 
-        if (arg != symbol->param_count)
+        if (arg != symbol->param_sizes[i])
             printError(ERR_SEM_ARG);
 
         if (carka != arg - 1 && !(arg == 0 && carka == 0))
         {
             printError(ERR_SYN);
         }
+    }
+
+    if (current_token.type == TOKEN_LZAVORKA)
+    {
+        printError(ERR_SEM_ARG);
     }
 
     gen_call(token_id.string, (size_t)total_args); // GEN: argumenty už jsou na zásobníku
@@ -258,6 +282,22 @@ static DataType parse_value()
     if (current_token.type == TOKEN_ID)
     {
         Token next = (token_index < tokens.count) ? tokens.items[token_index] : current_token;
+        SymbolData *sym = symtable_lookup(current_token.string);
+
+        if (sym != NULL && sym->symbol_type == SYM_FUNCTION)
+        {
+            if (sym->param_count == 0 && next.type == TOKEN_LZAVORKA)
+            {
+                match(TOKEN_ID);
+                match(TOKEN_LZAVORKA);
+                printError(ERR_SEM_ARG);
+            }
+            else if (sym->param_count > 0 && next.type != TOKEN_LZAVORKA)
+            {
+                printError(ERR_SEM_ARG);
+            }
+        }
+
         if (next.type == TOKEN_LZAVORKA)
         {
             Token id_tok = match(TOKEN_ID);
