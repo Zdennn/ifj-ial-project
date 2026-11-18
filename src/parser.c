@@ -349,10 +349,6 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
                     printError(ERR_SEM_TYPE);
                 }
             }
-            if (type_of_expresion == TYPE_BOOLEAN || final_var_type == TYPE_BOOLEAN)
-            {
-                printError(ERR_SEM_TYPE);
-            }
             symtable_insert_var(token_id.string, final_var_type, true);
             { // GEN: definice proměnné a uložení hodnoty výrazu
                 SymbolData *var_sym = symtable_lookup_current(token_id.string);
@@ -402,10 +398,6 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
                 {
                     printError(ERR_SEM_TYPE);
                 }
-            }
-            if (type_of_expresion == TYPE_BOOLEAN || final_var_type == TYPE_BOOLEAN)
-            {
-                printError(ERR_SEM_TYPE);
             }
             symtable_insert_var(token_id.string, final_var_type, false);
             { // GEN: definice proměnné a uložení hodnoty výrazu
@@ -1033,6 +1025,9 @@ static DataType expression_to_DataType(Token token)
         return TYPE_DOUBLE;
     case TOKEN_STRING_HOD:
         return TYPE_STRING;
+    case TOKEN_TRUE_HOD: /* BOOLTHEN */
+    case TOKEN_FALSE_HOD:
+        return TYPE_BOOLEAN;
     case TOKEN_UNIT:
         return TYPE_UNIT;
     case TOKEN_ID:
