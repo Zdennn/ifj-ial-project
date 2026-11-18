@@ -1152,10 +1152,10 @@ DataType parse_expression()
                 case TOKEN_STRING_HOD:
                     gen_push_string(current_token.string);
                     break;
-                case TOKEN_TRUE_HOD:        //BOOLTHEN
+                case TOKEN_TRUE_HOD: // BOOLTHEN
                     gen_push("bool@true");
                     break;
-                case TOKEN_FALSE_HOD:       //BOOLTHEN
+                case TOKEN_FALSE_HOD: // BOOLTHEN
                     gen_push("bool@false");
                     break;
                 case TOKEN_UNIT:
@@ -1208,6 +1208,26 @@ DataType parse_expression()
                 if (stack_items[0].sem_type == SEM_TERMINAL && stack_items[0].prec_sym == PREC_ID)
                 {
                     result_type = stack_items[0].data_type;
+                }
+                else
+                {
+                    stack_free(&stack);
+                    printError(ERR_SYN);
+                }
+            }
+            else if (count == 2)
+            {
+                // Pravidlo: E -> ! E (BOOLTHEN)
+                if (stack_items[1].sem_type == SEM_TERMINAL && stack_items[1].token_type == TOKEN_NOT &&
+                    stack_items[0].sem_type == SEM_NONTERMINAL)
+                {
+                    if (stack_items[0].data_type != TYPE_BOOLEAN)
+                    {
+                        stack_free(&stack);
+                        printError(ERR_SEM_TYPE);
+                    }
+                    result_type = TYPE_BOOLEAN;
+                    gen_instr("NOTS", NULL, NULL, NULL); // GEN: logická negace na zásobníku
                 }
                 else
                 {

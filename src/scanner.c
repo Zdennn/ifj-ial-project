@@ -827,7 +827,6 @@ int get_next_token(Token *token)
                 if (c != EOF)
                 {
                     unread_char(c, stdin);
-                    return ERR_LEX;
                 }
                 token->type = TOKEN_NOT; //BOOLTHEN
                 token->line = current_line;
