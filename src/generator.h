@@ -221,6 +221,13 @@ void gen_logic_begin(TokenType op);
 void gen_logic_end(TokenType op);
 
 /**
+ * CONTROL: po if použitém jako výraz s větvemi Int a Double převede výsledek na Double, pokud je na zásobníku Int.
+ * Typ se zjišťuje za běhu, protože při generování první větve ještě není známý typ druhé.
+ * @param id Číslo z gen_new_label_id() pro návěští.
+ */
+void gen_if_to_double(int id);
+
+/**
  * @brief Unární mínus nad hodnotou na vrcholu zásobníku.
  * @param type TYPE_INT nebo TYPE_DOUBLE.
  */

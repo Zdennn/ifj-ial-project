@@ -541,6 +541,21 @@ void gen_logic_end(TokenType op)
     gen_label(end_label);
 }
 
+/* CONTROL: po if použitém jako výraz s větvemi Int a Double převede výsledek na Double. Typ se zjišťuje za běhu,
+ * protože při generování první větve ještě není známý typ druhé. */
+void gen_if_to_double(int id)
+{
+    char label[GEN_NAME_MAX];
+    gen_label_name(label, sizeof(label), "ifconv", id);
+
+    gen_instr("POPS", "GF@$tmp1", NULL, NULL);
+    gen_instr("TYPE", "GF@$tmp2", "GF@$tmp1", NULL);
+    gen_instr("JUMPIFNEQ", label, "GF@$tmp2", "string@int");
+    gen_instr("INT2FLOAT", "GF@$tmp1", "GF@$tmp1", NULL);
+    gen_label(label);
+    gen_instr("PUSHS", "GF@$tmp1", NULL, NULL);
+}
+
 void gen_unary_minus(DataType type)
 {
     /* Násobení -1 zachová i záporné nuly u desetinných čísel. */

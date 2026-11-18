@@ -32,6 +32,12 @@ char *main_name;
 /* GEN: true, pokud poslední příkaz nechal na datovém zásobníku hodnotu (výraz nebo volání) */
 static bool stmt_value_pending = false;
 
+/* CONTROL: údaje o aktuální funkci a příkazu pro if použitý jako výraz (parse_value je nemá jako parametry) */
+static DataType fn_expected_return = TYPE_ANY;
+static bool fn_has_explicit_return = false;
+static int stmt_indent = 0;
+static ErrorCodes if_expr_error = ERR_OK; /* CONTROL: proč nelze poslední zpracovaný if použít jako výraz */
+
 /* GEN: zahodí hodnotu posledního příkazu, pokud nějaká na zásobníku leží */
 static void discard_pending_value(void)
 {
@@ -277,8 +283,20 @@ static DataType parse_call(Token token_id)
     return symbol->data_type;
 }
 
+static DataType parse_if(DataType expected_return_type, bool has_explicit_return, int pocet_odsazeni); /* dopředná deklarace */
+
 static DataType parse_value()
 {
+    if (current_token.type == TOKEN_IF) /* CONTROL: if jako výraz */
+    {
+        DataType if_type = parse_if(fn_expected_return, fn_has_explicit_return, stmt_indent);
+        if (if_expr_error != ERR_OK)
+        {
+            printError(if_expr_error); /* if jako výraz: else je povinný a typy větví musí být shodné */
+        }
+        return if_type;
+    }
+
     if (current_token.type == TOKEN_ID)
     {
         Token next = (token_index < tokens.count) ? tokens.items[token_index] : current_token;
@@ -310,6 +328,20 @@ static DataType parse_value()
 
 DataType parse_block(DataType expected_return_type, bool has_explicit_return); /* dopředná deklarace pro parse_if */
 
+/* CONTROL: větev if (blok nebo jednořádkové tělo) vždy nechá na datovém zásobníku právě jednu hodnotu.
+ * Pokud poslední příkaz větve žádnou hodnotu nenechal (definice, přiřazení, cyklus), vloží se Unit. */
+static void ensure_branch_value(void)
+{
+    if (stmt_value_pending)
+    {
+        stmt_value_pending = false; /* hodnota zůstává na zásobníku jako hodnota větve */
+    }
+    else
+    {
+        gen_push("string@()");
+    }
+}
+
 /* Zpracování příkazu if (volá se hned po zjištění tokenu if). Pro else if se volá rekurzivně. */
 static DataType parse_if(DataType expected_return_type, bool has_explicit_return, int pocet_odsazeni)
 {
@@ -325,34 +357,57 @@ static DataType parse_if(DataType expected_return_type, bool has_explicit_return
     }
     gen_if_begin(if_id); // GEN: vyjme podmínku ze zásobníku, při false skočí na else
     match(TOKEN_THEN);
-    match(TOKEN_EOL);
-    // Then musí mít větší odsazení než if
-    if (current_token.type != TOKEN_ODSAZENI || current_token.int_val <= pocet_odsazeni)
+    DataType type_then = TYPE_UNIT;
+    if (current_token.type == TOKEN_EOL)
     {
-        printError(ERR_SYN);
+        match(TOKEN_EOL);
+        // Then musí mít větší odsazení než if
+        if (current_token.type != TOKEN_ODSAZENI || current_token.int_val <= pocet_odsazeni)
+        {
+            printError(ERR_SYN);
+        }
+        symtable_push_scope();
+        type_then = parse_block(expected_return_type, has_explicit_return);
+        symtable_pop_scope();
+        ensure_branch_value(); // GEN: hodnota větve then zůstane na zásobníku
     }
-    symtable_push_scope();
-    DataType type_then = parse_block(expected_return_type, has_explicit_return);
-    symtable_pop_scope();
-    discard_pending_value(); // GEN
-
-    gen_if_else(if_id); // GEN: JUMP na konec if a návěští else
+    else
+    {
+        /* CONTROL: jednořádkové tělo větve then, hodnota výrazu zůstane na zásobníku */
+        type_then = parse_value();
+        if (current_token.type == TOKEN_EOL)
+        {
+            match(TOKEN_EOL);
+        }
+    }
 
     /* BOOLTHEN: if bez else. Else existuje jen tehdy, když stejně odsazený řádek začíná tokenem else. */
-    bool has_else = current_token.type == TOKEN_ODSAZENI && current_token.int_val == pocet_odsazeni &&
-                    token_index < tokens.count && tokens.items[token_index].type == TOKEN_ELSE;
+    bool else_same_line = current_token.type == TOKEN_ELSE; /* CONTROL: else na stejném řádku za jednořádkovým then */
+    bool has_else = else_same_line || (current_token.type == TOKEN_ODSAZENI && current_token.int_val == pocet_odsazeni &&
+                                       token_index < tokens.count && tokens.items[token_index].type == TOKEN_ELSE);
     if (!has_else)
     {
-        gen_if_end(if_id); // GEN: chybějící else je prázdná větev
+        /* CONTROL: bez else není if výrazem, jeho hodnotou je Unit */
+        gen_pop("GF@$tmp1");   // GEN: hodnota větve then se zahodí
+        gen_push("string@()"); // GEN: výsledek při splněné podmínce
+        gen_if_else(if_id);    // GEN: JUMP na konec if a návěští else
+        gen_push("string@()"); // GEN: výsledek při nesplněné podmínce
+        gen_if_end(if_id);     // GEN: návěští konce if
+        if_expr_error = ERR_SYN; // CONTROL: bez else nelze if použít jako výraz
         return TYPE_UNIT;
     }
 
-    // Else musí mít stejné odsazení jako if!
-    if (current_token.type != TOKEN_ODSAZENI || current_token.int_val != pocet_odsazeni)
+    gen_if_else(if_id); // GEN: JUMP na konec if a návěští else
+
+    if (!else_same_line)
     {
-        printError(ERR_SYN);
+        // Else musí mít stejné odsazení jako if!
+        if (current_token.type != TOKEN_ODSAZENI || current_token.int_val != pocet_odsazeni)
+        {
+            printError(ERR_SYN);
+        }
+        match(TOKEN_ODSAZENI);
     }
-    match(TOKEN_ODSAZENI);
     match(TOKEN_ELSE);
 
     DataType type_else = TYPE_UNIT;
@@ -372,12 +427,11 @@ static DataType parse_if(DataType expected_return_type, bool has_explicit_return
         symtable_push_scope();
         type_else = parse_block(expected_return_type, has_explicit_return);
         symtable_pop_scope();
-        discard_pending_value(); // GEN
+        ensure_branch_value(); // GEN
     }
     else
     {
         type_else = parse_value();
-        gen_pop("GF@$tmp1"); // GEN: hodnota větve se zahodí
         if (current_token.type == TOKEN_EOL)
         {
             match(TOKEN_EOL);
@@ -389,15 +443,19 @@ static DataType parse_if(DataType expected_return_type, bool has_explicit_return
     if (type_then == type_else)
     {
         last_type = type_then;
+        if_expr_error = ERR_OK;
     }
     else if ((type_then == TYPE_INT && type_else == TYPE_DOUBLE) || (type_then == TYPE_DOUBLE && type_else == TYPE_INT))
     {
         last_type = TYPE_DOUBLE;
+        gen_if_to_double(if_id); // GEN: Int větev se za běhu převede na Double
+        if_expr_error = ERR_OK;
     }
     else
     {
         // rozdilne typy
         last_type = TYPE_UNIT;
+        if_expr_error = ERR_SEM_TYPE; // CONTROL: rozdílné typy větví
     }
 
     return last_type;
@@ -454,6 +512,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
 
         discard_pending_value();    // GEN: předchozí příkaz nebyl poslední, jeho hodnota se zahodí
         stmt_value_pending = false; // GEN: tenhle příkaz zatím žádnou hodnotu nemá
+        stmt_indent = pocet_odsazeni; // CONTROL: odsazení řádku, na kterém příkaz začíná
 
         switch (current_token.type)
         {
@@ -559,6 +618,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             break;
         case TOKEN_IF:
             last_type = parse_if(expected_return_type, has_explicit_return, pocet_odsazeni); // if včetně else
+            stmt_value_pending = true; // GEN: if nechává na zásobníku hodnotu
             break;
         case TOKEN_WHILE:
             match(TOKEN_WHILE);
@@ -1553,6 +1613,9 @@ void parse_function()
     }
 
     DataType actual_return = {0};
+    fn_expected_return = explicit ? expected_return : TYPE_ANY; // CONTROL
+    fn_has_explicit_return = explicit;
+    stmt_indent = 0;
     match(TOKEN_ROVNO);
 
     if (current_token.type == TOKEN_EOL)
