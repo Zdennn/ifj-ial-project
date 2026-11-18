@@ -70,6 +70,7 @@ typedef enum
     TOKEN_FOR,
     TOKEN_LARROW, // <-
     TOKEN_INTERP_END, // INTERPOLATEDS: konec ${výrazu}, vzniká jen uvnitř interpolovaného řetězce
+    TOKEN_EXTENSION, // EXTKW: klíčové slovo extension
 } TokenType;
 
 typedef struct

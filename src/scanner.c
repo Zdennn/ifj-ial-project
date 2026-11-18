@@ -674,6 +674,11 @@ int get_next_token(Token *token)
                 token->type = TOKEN_WHILE;
                 token->line = current_line;
             }
+            else if (strcmp(buffer, "extension") == 0) /* EXTKW */
+            {
+                token->type = TOKEN_EXTENSION;
+                token->line = current_line;
+            }
             else if (strcmp(buffer, "for") == 0) /* CONTROL */
             {
                 token->type = TOKEN_FOR;

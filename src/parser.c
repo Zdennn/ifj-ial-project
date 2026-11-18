@@ -1083,9 +1083,181 @@ ErrorCodes define_function_header()
     return 0;
 }
 
+/* EXTKW: názvy rozšiřujících metod ext$Typ$jméno a informace, zda se definují se závorkami */
+#define EXT_MAX 256
+static char *ext_names[EXT_MAX];
+static bool ext_parens[EXT_MAX];
+static int ext_count = 0;
+
+static const char *ext_type_name(TokenType type)
+{
+    switch (type)
+    {
+    case TOKEN_INT:
+        return "Int";
+    case TOKEN_DOUBLE:
+        return "Double";
+    case TOKEN_STRING:
+        return "String";
+    case TOKEN_BOOLEAN:
+        return "Boolean";
+    default:
+        return NULL;
+    }
+}
+
+static Token ext_make_token(TokenType type, const char *str, int line)
+{
+    Token t;
+    t.type = type;
+    t.string = NULL;
+    t.int_val = 0;
+    t.double_val = 0;
+    t.line = line;
+    if (str != NULL)
+    {
+        t.string = strdup(str);
+        if (t.string == NULL)
+        {
+            printError(ERR_INTERNAL);
+        }
+    }
+    return t;
+}
+
+/* EXTKW: přepíše bloky extension (value: Typ) na běžné funkce ext$Typ$jméno(value: Typ, ...).
+ * Díky tomu oba průchody parseru vidí jen obyčejné funkce. */
+static void rewrite_extensions(void)
+{
+    TokenArray out;
+    token_array_init(&out);
+    int i = 0;
+
+    while (i < tokens.count)
+    {
+        Token t = tokens.items[i];
+        if (t.type != TOKEN_EXTENSION)
+        {
+            token_array_append(&out, t);
+            i++;
+            continue;
+        }
+
+        /* hlavička: extension ( jméno : Typ ) konec řádku */
+        if (i + 6 >= tokens.count || tokens.items[i + 1].type != TOKEN_LZAVORKA ||
+            tokens.items[i + 2].type != TOKEN_ID || tokens.items[i + 3].type != TOKEN_DVOJTEC ||
+            tokens.items[i + 5].type != TOKEN_PZAVORKA || tokens.items[i + 6].type != TOKEN_EOL)
+        {
+            printError(ERR_SYN);
+        }
+        Token recv_name = tokens.items[i + 2];
+        Token recv_type = tokens.items[i + 4];
+        const char *type_name = ext_type_name(recv_type.type);
+        if (type_name == NULL)
+        {
+            printError(ERR_SYN);
+        }
+        i += 7;
+
+        int def_indent = 0;
+        int at_line_start = 1;
+        int methods = 0;
+
+        while (i < tokens.count && tokens.items[i].type != TOKEN_EOF)
+        {
+            Token cur = tokens.items[i];
+
+            if (at_line_start)
+            {
+                if (cur.type == TOKEN_EOL)
+                {
+                    token_array_append(&out, cur);
+                    i++;
+                    continue;
+                }
+                if (cur.type != TOKEN_ODSAZENI)
+                {
+                    break; /* neodsazený řádek ukončuje blok extension */
+                }
+                if (def_indent == 0)
+                {
+                    def_indent = cur.int_val;
+                }
+                if (cur.int_val == def_indent)
+                {
+                    int d = i + 1; /* token def, odsazení před ním se zahodí */
+                    if (d + 3 >= tokens.count || tokens.items[d].type != TOKEN_DEF || tokens.items[d + 1].type != TOKEN_ID)
+                    {
+                        printError(ERR_SYN);
+                    }
+                    Token name_tok = tokens.items[d + 1];
+                    int parens = tokens.items[d + 2].type == TOKEN_LZAVORKA;
+
+                    char full[256];
+                    snprintf(full, sizeof(full), "ext$%s$%s", type_name, name_tok.string);
+                    for (int k = 0; k < ext_count; k++)
+                    {
+                        if (strcmp(ext_names[k], full) == 0)
+                        {
+                            printError(ERR_SEM_REDEF); /* stejná metoda pro stejný typ podruhé */
+                        }
+                    }
+                    if (ext_count >= EXT_MAX)
+                    {
+                        printError(ERR_INTERNAL);
+                    }
+                    ext_names[ext_count] = strdup(full);
+                    ext_parens[ext_count] = parens;
+                    ext_count++;
+
+                    token_array_append(&out, tokens.items[d]);
+                    token_array_append(&out, ext_make_token(TOKEN_ID, full, name_tok.line));
+                    if (parens)
+                    {
+                        token_array_append(&out, tokens.items[d + 2]); /* ( */
+                        token_array_append(&out, ext_make_token(TOKEN_ID, recv_name.string, name_tok.line));
+                        token_array_append(&out, ext_make_token(TOKEN_DVOJTEC, NULL, name_tok.line));
+                        token_array_append(&out, recv_type);
+                        if (tokens.items[d + 3].type != TOKEN_PZAVORKA)
+                        {
+                            token_array_append(&out, ext_make_token(TOKEN_CARKA, NULL, name_tok.line));
+                        }
+                        i = d + 3;
+                    }
+                    else
+                    {
+                        token_array_append(&out, ext_make_token(TOKEN_LZAVORKA, NULL, name_tok.line));
+                        token_array_append(&out, ext_make_token(TOKEN_ID, recv_name.string, name_tok.line));
+                        token_array_append(&out, ext_make_token(TOKEN_DVOJTEC, NULL, name_tok.line));
+                        token_array_append(&out, recv_type);
+                        token_array_append(&out, ext_make_token(TOKEN_PZAVORKA, NULL, name_tok.line));
+                        i = d + 2;
+                    }
+                    methods++;
+                    at_line_start = 0;
+                    continue;
+                }
+            }
+
+            token_array_append(&out, cur);
+            at_line_start = (cur.type == TOKEN_EOL);
+            i++;
+        }
+
+        if (methods == 0)
+        {
+            printError(ERR_SYN); /* extension bez jediné metody */
+        }
+    }
+
+    free(tokens.items);
+    tokens = out;
+}
+
 ErrorCodes parse()
 {
     read_file_by_tokens();
+    rewrite_extensions(); /* EXTKW: přepíše extension bloky na běžné funkce */
 
     symtable_init();
 
@@ -1311,9 +1483,91 @@ static DataType expression_to_DataType(Token token)
 
 /* VALMEM: použití členu hodnoty (výraz.id). Hodnota příjemce je na datovém zásobníku, výsledek tam zůstane místo ní.
  * Vrací typ výsledku. Člen se převede na volání vestavěné funkce. */
+/* EXTKW: volání rozšiřující metody členským zápisem, příjemce už leží na datovém zásobníku */
+static DataType parse_ext_call(char *full_name, int parens)
+{
+    SymbolData *symbol = symtable_lookup(full_name);
+    if (symbol == NULL || symbol->symbol_type != SYM_FUNCTION || symbol->param_count != 1)
+    {
+        printError(ERR_SEM_UNDEF);
+    }
+
+    int arg = 1; /* příjemce se počítá jako první argument */
+
+    if (parens)
+    {
+        if (current_token.type != TOKEN_LZAVORKA)
+        {
+            printError(ERR_SEM_ARG); /* metoda definovaná se závorkami se bez nich volat nesmí */
+        }
+        match(TOKEN_LZAVORKA);
+        while (current_token.type != TOKEN_PZAVORKA && current_token.type != TOKEN_EOF)
+        {
+            DataType arg_type = parse_expression();
+            if (arg >= symbol->param_sizes[0])
+            {
+                printError(ERR_SEM_ARG);
+            }
+            DataType expected = symbol->param_types[0][arg];
+            if (expected != TYPE_ANY && arg_type != expected)
+            {
+                if (!(arg_type == TYPE_INT && expected == TYPE_DOUBLE))
+                {
+                    printError(ERR_SEM_ARG);
+                }
+                gen_instr("INT2FLOATS", NULL, NULL, NULL); /* Int argument pro parametr Double */
+            }
+            arg++;
+            if (current_token.type == TOKEN_CARKA)
+            {
+                match(TOKEN_CARKA);
+            }
+            else
+            {
+                break;
+            }
+        }
+        match(TOKEN_PZAVORKA);
+    }
+    else if (current_token.type == TOKEN_LZAVORKA)
+    {
+        printError(ERR_SEM_ARG); /* bezparametrická metoda se volá bez závorek */
+    }
+
+    if (arg != symbol->param_sizes[0])
+    {
+        printError(ERR_SEM_ARG);
+    }
+
+    gen_call(full_name, (size_t)arg);
+    gen_push_retval();
+    return symbol->data_type;
+}
+
 static DataType parse_member(DataType receiver, Token member)
 {
     const char *name = member.string;
+
+    /* EXTKW: uživatelská rozšiřující metoda má přednost před vestavěnými členy */
+    {
+        const char *type_name = (receiver == TYPE_INT)       ? "Int"
+                                : (receiver == TYPE_DOUBLE)  ? "Double"
+                                : (receiver == TYPE_STRING)  ? "String"
+                                : (receiver == TYPE_BOOLEAN) ? "Boolean"
+                                                             : NULL;
+        if (type_name != NULL)
+        {
+            char full[256];
+            snprintf(full, sizeof(full), "ext$%s$%s", type_name, name);
+            for (int k = 0; k < ext_count; k++)
+            {
+                if (strcmp(ext_names[k], full) == 0)
+                {
+                    return parse_ext_call(full, ext_parens[k]);
+                }
+            }
+        }
+    }
 
     if (strcmp(name, "toString") == 0)
     {
