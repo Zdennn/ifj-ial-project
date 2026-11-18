@@ -61,6 +61,7 @@ void symtable_init()
     symtable_insert_function("readLine", TYPE_STRING, 0, NULL, false);
     symtable_insert_function("readInt", TYPE_INT, 0, NULL, false);
     symtable_insert_function("readDouble", TYPE_DOUBLE, 0, NULL, false);
+    symtable_insert_function("readBoolean", TYPE_BOOLEAN, 0, NULL, false); /* BOOLTHEN */
     symtable_insert_function("toStr", TYPE_STRING, 1, (DataType[]){TYPE_ANY}, false);
     symtable_insert_function("toInt", TYPE_INT, 1, (DataType[]){TYPE_DOUBLE}, false);
     symtable_insert_function("strLength", TYPE_INT, 1, (DataType[]){TYPE_STRING}, false);

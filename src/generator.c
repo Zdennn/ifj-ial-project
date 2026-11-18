@@ -808,6 +808,7 @@ void gen_builtins(void)
     builtin_read("readLine", "string", "string@");
     builtin_read("readInt", "int", "int@0");
     builtin_read("readDouble", "float", "float@0x0p+0");
+    builtin_read("readBoolean", "bool", "bool@false"); /* BOOLTHEN */
     builtin_toStr();
     builtin_unary("toInt", "FLOAT2INT");
     builtin_unary("strLength", "STRLEN");
