@@ -1,0 +1,25 @@
+import ifj26.*
+
+@main def run(): Unit =
+  val x = 2
+  val z = 0
+  if z > 5 && 10 / z > 1 then
+    print("a")
+  else
+    print("b")
+  if z == 0 || 10 / z > 1 then
+    print("c")
+  else
+    print("d")
+  if x > 1 && (x < 1 || x == 2) then
+    print("e")
+  else
+    print("f")
+  if x > 5 || x > 1 && x < 0 then
+    print("g")
+  else
+    print("h")
+  if !(x < 3) then
+    print("i")
+  else
+    print("j")
