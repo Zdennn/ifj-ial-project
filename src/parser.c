@@ -125,8 +125,9 @@ void reset_parser_position()
 
 Token match(TokenType expected)
 {
-    fprintf(stderr, "current: %s, expected: %s, line: %d\n", getTokenName(current_token.type), getTokenName(expected),
-            current_token.line);
+    // fprintf(stderr, "current: %s, expected: %s, line: %d\n", getTokenName(current_token.type),
+    // getTokenName(expected),
+    //         current_token.line);
     if (current_token.type == expected)
     {
         Token old_token = current_token;
@@ -841,7 +842,7 @@ ErrorCodes parse()
         printError(ERR_SEM_UNDEF);
     }
 
-    fprintf(stderr, "Konec privniho cteni\n");
+    // fprintf(stderr, "Konec privniho cteni\n");
 
     gen_header();
     gen_program_start(main_name);
