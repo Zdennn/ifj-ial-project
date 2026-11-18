@@ -1658,6 +1658,15 @@ DataType parse_expression()
 
         StackItem *top_term = stack_top_terminal(&stack);
         PrecIndex input_prec_index = token_to_index(current_token.type);
+        /* unární mínus: mínus tam, kde se čeká operand, se chová jako prefixový operátor (jako !) */
+        if (current_token.type == TOKEN_MINUS)
+        {
+            StackItem *prev = stack_top(&stack);
+            if (prev->sem_type == SEM_TERMINAL && prev->prec_sym != PREC_ID && prev->prec_sym != PREC_PZAVORKA)
+            {
+                input_prec_index = PREC_NOT;
+            }
+        }
 
         if (current_token.type == TOKEN_PZAVORKA && depth == 0)
         {
@@ -1817,6 +1826,20 @@ DataType parse_expression()
             }
             else if (count == 2)
             {
+                // Pravidlo: E -> - E (unární mínus)
+                if (stack_items[1].sem_type == SEM_TERMINAL && stack_items[1].token_type == TOKEN_MINUS &&
+                    stack_items[0].sem_type == SEM_NONTERMINAL)
+                {
+                    DataType operand_type = stack_items[0].data_type;
+                    if (operand_type != TYPE_INT && operand_type != TYPE_DOUBLE)
+                    {
+                        stack_free(&stack);
+                        printError(ERR_SEM_TYPE);
+                    }
+                    result_type = operand_type;
+                    gen_unary_minus(operand_type); // GEN: změna znaménka hodnoty na zásobníku
+                }
+                else
                 // Pravidlo: E -> ! E (BOOLTHEN)
                 if (stack_items[1].sem_type == SEM_TERMINAL && stack_items[1].token_type == TOKEN_NOT &&
                     stack_items[0].sem_type == SEM_NONTERMINAL)
