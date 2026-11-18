@@ -38,6 +38,14 @@ static bool fn_has_explicit_return = false;
 static int stmt_indent = 0;
 static ErrorCodes if_expr_error = ERR_OK; /* CONTROL: proč nelze poslední zpracovaný if použít jako výraz */
 
+/* CONTROL: slova to, until a by nejsou klíčová, jsou to běžné identifikátory. V hlavičce for ale ukončují výraz. */
+static bool in_for_header = false;
+
+static bool is_range_word(const char *name)
+{
+    return strcmp(name, "to") == 0 || strcmp(name, "until") == 0 || strcmp(name, "by") == 0;
+}
+
 /* GEN: zahodí hodnotu posledního příkazu, pokud nějaká na zásobníku leží */
 static void discard_pending_value(void)
 {
@@ -461,6 +469,98 @@ static DataType parse_if(DataType expected_return_type, bool has_explicit_return
     return last_type;
 }
 
+/* CONTROL: cyklus for. Tvar: for i <- od to|until do [by krok] [if stráž]... do tělo */
+static DataType parse_for(DataType expected_return_type, bool has_explicit_return, int pocet_odsazeni)
+{
+    int for_id = gen_new_label_id();
+    bool has_step = false;
+    bool inclusive = true;
+
+    match(TOKEN_FOR);
+    Token var = match(TOKEN_ID);
+    match(TOKEN_LARROW);
+
+    in_for_header = true;
+    if (parse_expression() != TYPE_INT)
+    {
+        printError(ERR_SEM_TYPE);
+    }
+    if (current_token.type != TOKEN_ID)
+    {
+        printError(ERR_SYN);
+    }
+    if (strcmp(current_token.string, "to") == 0)
+    {
+        inclusive = true;
+    }
+    else if (strcmp(current_token.string, "until") == 0)
+    {
+        inclusive = false;
+    }
+    else
+    {
+        printError(ERR_SYN);
+    }
+    match(TOKEN_ID);
+    if (parse_expression() != TYPE_INT)
+    {
+        printError(ERR_SEM_TYPE);
+    }
+    if (current_token.type == TOKEN_ID && strcmp(current_token.string, "by") == 0)
+    {
+        match(TOKEN_ID);
+        has_step = true;
+        if (parse_expression() != TYPE_INT)
+        {
+            printError(ERR_SEM_TYPE);
+        }
+    }
+    in_for_header = false;
+
+    symtable_push_scope();
+    symtable_insert_var(var.string, TYPE_INT, false);
+    SymbolData *var_sym = symtable_lookup_current(var.string);
+    gen_defvar_local(var_sym->gen_name);
+    gen_for_init(var_sym->gen_name, for_id, has_step);
+    gen_for_begin(var_sym->gen_name, for_id, inclusive);
+
+    while (current_token.type == TOKEN_IF)
+    {
+        match(TOKEN_IF);
+        if (parse_expression() != TYPE_BOOLEAN)
+        {
+            printError(ERR_SEM_TYPE);
+        }
+        gen_for_guard(for_id);
+    }
+
+    match(TOKEN_DO);
+    if (current_token.type == TOKEN_EOL)
+    {
+        match(TOKEN_EOL);
+        if (current_token.type != TOKEN_ODSAZENI || current_token.int_val <= pocet_odsazeni)
+        {
+            printError(ERR_SYN);
+        }
+        symtable_push_scope();
+        parse_block(expected_return_type, has_explicit_return);
+        symtable_pop_scope();
+        discard_pending_value();
+    }
+    else
+    {
+        parse_value();
+        gen_pop("GF@$tmp1"); /* GEN: hodnota těla se zahodí */
+        if (current_token.type == TOKEN_EOL)
+        {
+            match(TOKEN_EOL);
+        }
+    }
+    gen_for_end(var_sym->gen_name, for_id);
+    symtable_pop_scope();
+    return TYPE_UNIT;
+}
+
 DataType parse_block(DataType expected_return_type, bool has_explicit_return)
 {
 
@@ -619,6 +719,9 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
         case TOKEN_IF:
             last_type = parse_if(expected_return_type, has_explicit_return, pocet_odsazeni); // if včetně else
             stmt_value_pending = true; // GEN: if nechává na zásobníku hodnotu
+            break;
+        case TOKEN_FOR:
+            last_type = parse_for(expected_return_type, has_explicit_return, pocet_odsazeni);
             break;
         case TOKEN_WHILE:
             match(TOKEN_WHILE);
@@ -1303,6 +1406,12 @@ DataType parse_expression()
         PrecIndex input_prec_index = token_to_index(current_token.type);
 
         if (current_token.type == TOKEN_PZAVORKA && depth == 0)
+        {
+            input_prec_index = PREC_STOP;
+        }
+
+        /* CONTROL: v hlavičce for slova to, until a by ukončují výraz */
+        if (in_for_header && depth == 0 && current_token.type == TOKEN_ID && is_range_word(current_token.string))
         {
             input_prec_index = PREC_STOP;
         }

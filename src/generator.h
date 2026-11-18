@@ -228,6 +228,22 @@ void gen_logic_end(TokenType op);
 void gen_if_to_double(int id);
 
 /**
+ * CONTROL: cyklus for, příprava. Ze zásobníku vyzvedne od, do a případně krok (krok nahoře), uloží je do řídicí
+ * proměnné a skrytých proměnných cyklu. Při zadaném kroku za běhu kontroluje, že není nulový (EXIT 40).
+ * @param var Jméno řídicí proměnné (už definované přes gen_defvar_local).
+ */
+void gen_for_init(const char *var, int id, bool has_step);
+
+/** CONTROL: začátek cyklu for a kontrola rozsahu. inclusive je true pro to, false pro until. */
+void gen_for_begin(const char *var, int id, bool inclusive);
+
+/** CONTROL: stráž cyklu for. Hodnotu podmínky vyjme ze zásobníku, při nepravdě přeskočí tělo. */
+void gen_for_guard(int id);
+
+/** CONTROL: konec cyklu for. Přičte krok, skočí na začátek a vloží návěští konce. */
+void gen_for_end(const char *var, int id);
+
+/**
  * @brief Unární mínus nad hodnotou na vrcholu zásobníku.
  * @param type TYPE_INT nebo TYPE_DOUBLE.
  */

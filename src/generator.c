@@ -556,6 +556,107 @@ void gen_if_to_double(int id)
     gen_instr("PUSHS", "GF@$tmp1", NULL, NULL);
 }
 
+/* CONTROL: cyklus for. Skryté lokální proměnné cyklu: $fe<id> (konec rozsahu), $fs<id> (krok), $fc<id> (pomocná).
+ * Na zásobníku leží hodnoty od, do a případně krok (krok nahoře). */
+void gen_for_init(const char *var, int id, bool has_step)
+{
+    char name[GEN_NAME_MAX];
+    char end[GEN_NAME_MAX];
+    char step[GEN_NAME_MAX];
+    char loc[GEN_NAME_MAX];
+    char ok[GEN_NAME_MAX];
+
+    snprintf(name, sizeof(name), "$fe%d", id);
+    gen_defvar_local(name);
+    snprintf(end, sizeof(end), "LF@$fe%d", id);
+    snprintf(name, sizeof(name), "$fs%d", id);
+    gen_defvar_local(name);
+    snprintf(step, sizeof(step), "LF@$fs%d", id);
+    snprintf(name, sizeof(name), "$fc%d", id);
+    gen_defvar_local(name);
+    snprintf(loc, sizeof(loc), "LF@%s", var);
+
+    if (has_step)
+    {
+        gen_instr("POPS", step, NULL, NULL);
+        gen_label_name(ok, sizeof(ok), "for_step_ok", id);
+        gen_instr("JUMPIFNEQ", ok, step, "int@0");
+        gen_instr("EXIT", "int@40", NULL, NULL); /* nulový krok */
+        gen_label(ok);
+    }
+    else
+    {
+        gen_instr("MOVE", step, "int@1", NULL);
+    }
+    gen_instr("POPS", end, NULL, NULL);
+    gen_instr("POPS", loc, NULL, NULL);
+}
+
+/* CONTROL: začátek cyklu a kontrola rozsahu. inclusive je true pro to, false pro until. */
+void gen_for_begin(const char *var, int id, bool inclusive)
+{
+    char start[GEN_NAME_MAX];
+    char neg[GEN_NAME_MAX];
+    char body[GEN_NAME_MAX];
+    char done[GEN_NAME_MAX];
+    char loc[GEN_NAME_MAX];
+    char end[GEN_NAME_MAX];
+    char step[GEN_NAME_MAX];
+    char cond[GEN_NAME_MAX];
+
+    gen_label_name(start, sizeof(start), "for_start", id);
+    gen_label_name(neg, sizeof(neg), "for_neg", id);
+    gen_label_name(body, sizeof(body), "for_body", id);
+    gen_label_name(done, sizeof(done), "for_end", id);
+    snprintf(loc, sizeof(loc), "LF@%s", var);
+    snprintf(end, sizeof(end), "LF@$fe%d", id);
+    snprintf(step, sizeof(step), "LF@$fs%d", id);
+    snprintf(cond, sizeof(cond), "LF@$fc%d", id);
+
+    gen_label(start);
+    gen_instr("GT", cond, step, "int@0");
+    gen_instr("JUMPIFEQ", neg, cond, "bool@false");
+    /* kladný krok: to končí při i > konec, until při i >= konec */
+    gen_instr(inclusive ? "GT" : "LT", cond, loc, end);
+    gen_instr("JUMPIFEQ", done, cond, inclusive ? "bool@true" : "bool@false");
+    gen_instr("JUMP", body, NULL, NULL);
+    /* záporný krok: to končí při i < konec, until při i <= konec */
+    gen_label(neg);
+    gen_instr(inclusive ? "LT" : "GT", cond, loc, end);
+    gen_instr("JUMPIFEQ", done, cond, inclusive ? "bool@true" : "bool@false");
+    gen_label(body);
+}
+
+/* CONTROL: stráž cyklu for, hodnota podmínky je na zásobníku. Při nepravdě se přeskočí tělo. */
+void gen_for_guard(int id)
+{
+    char next[GEN_NAME_MAX];
+    gen_label_name(next, sizeof(next), "for_next", id);
+    gen_instr("POPS", "GF@$tmp1", NULL, NULL);
+    gen_instr("JUMPIFEQ", next, "GF@$tmp1", "bool@false");
+}
+
+/* CONTROL: konec cyklu for: přičtení kroku, skok na začátek a návěští konce. */
+void gen_for_end(const char *var, int id)
+{
+    char start[GEN_NAME_MAX];
+    char next[GEN_NAME_MAX];
+    char done[GEN_NAME_MAX];
+    char loc[GEN_NAME_MAX];
+    char step[GEN_NAME_MAX];
+
+    gen_label_name(start, sizeof(start), "for_start", id);
+    gen_label_name(next, sizeof(next), "for_next", id);
+    gen_label_name(done, sizeof(done), "for_end", id);
+    snprintf(loc, sizeof(loc), "LF@%s", var);
+    snprintf(step, sizeof(step), "LF@$fs%d", id);
+
+    gen_label(next);
+    gen_instr("ADD", loc, loc, step);
+    gen_instr("JUMP", start, NULL, NULL);
+    gen_label(done);
+}
+
 void gen_unary_minus(DataType type)
 {
     /* Násobení -1 zachová i záporné nuly u desetinných čísel. */

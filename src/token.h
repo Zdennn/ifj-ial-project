@@ -65,6 +65,10 @@ typedef enum
     TOKEN_NOT, // !
     TOKEN_AND, // &&
     TOKEN_OR,  // ||
+
+    // CONTROL
+    TOKEN_FOR,
+    TOKEN_LARROW, // <-
 } TokenType;
 
 typedef struct

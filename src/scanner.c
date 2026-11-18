@@ -364,6 +364,11 @@ int get_next_token(Token *token)
                 token->type = TOKEN_WHILE;
                 token->line = current_line;
             }
+            else if (strcmp(buffer, "for") == 0) /* CONTROL */
+            {
+                token->type = TOKEN_FOR;
+                token->line = current_line;
+            }
             else if (strcmp(buffer, "do") == 0)
             {
                 token->type = TOKEN_DO;
@@ -787,9 +792,9 @@ int get_next_token(Token *token)
             }
             else
             {
-                token->type = TOKEN_MENSI;
+                token->type = (c == '-') ? TOKEN_LARROW : TOKEN_MENSI; /* CONTROL: šipka <- */
                 token->line = current_line;
-                if (c != EOF)
+                if (c != EOF && c != '-')
                 {
                     unread_char(c, stdin);
                 }
