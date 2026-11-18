@@ -57,6 +57,14 @@ typedef enum
     TOKEN_NE_ROVNO,    // !=
     TOKEN_STEJNO,      // ==
 
+
+    // BOOLTHEN
+    TOKEN_BOOLEAN,
+    TOKEN_TRUE_HOD,
+    TOKEN_FALSE_HOD,
+    TOKEN_NOT, // !
+    TOKEN_AND, // &&
+    TOKEN_OR,  // ||
 } TokenType;
 
 typedef struct
