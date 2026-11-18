@@ -189,7 +189,7 @@ DataType token_to_dataType(Token token)
 static DataType parse_call(Token token_id)
 {
     SymbolData *symbol = symtable_lookup(token_id.string);
-    if (symbol == NULL)
+    if (symbol == NULL || symbol->symbol_type != SYM_FUNCTION)
         printError(ERR_SEM_UNDEF);
 
     match(TOKEN_LZAVORKA);
@@ -1104,6 +1104,21 @@ DataType parse_expression()
             depth--;
             break;
         case PREC_S:
+
+            // FUNEXP
+            Token next = (token_index < tokens.count) ? tokens.items[token_index] : current_token;
+            if (current_token.type == TOKEN_ID && next.type == TOKEN_LZAVORKA)
+            {
+                Token id = match(TOKEN_ID);
+                DataType call_type = parse_call(id);
+
+                stack_vlozeni_zarazky_za_nevyssi_terminal(&stack);
+                stack_push(&stack, (StackItem){.sem_type = SEM_TERMINAL,
+                                               .prec_sym = PREC_ID,
+                                               .data_type = call_type,
+                                               .token_type = TOKEN_ID});
+                break;
+            }
 
             if (current_token.type == TOKEN_ID)
             {
