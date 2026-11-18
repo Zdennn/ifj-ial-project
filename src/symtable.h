@@ -42,9 +42,10 @@ typedef struct
     char *gen_name; // Jedinečné jméno v generovaném kódu (jméno$číslo)
 
     // Pro funkce
-    int param_count;       // Počet parametrů funkce
-    DataType *param_types; // Pole typů parametrů
-    bool is_main;          // Příznak vstupní funkce @main
+    int param_count;        // Počet seznamů parametrů
+    int *param_sizes;       // Pole počtů parametrů v seznamech
+    DataType **param_types; // Pole polí typů parametrů             PARAMLISTS
+    bool is_main;           // Příznak vstupní funkce @main
 
 } SymbolData;
 
@@ -110,6 +111,7 @@ void symtable_insert_var(char *name, DataType type, bool is_var);
  * @param param_types Pole parametrů
  * @param is_main Boolean příznak, zda je main
  */
-void symtable_insert_function(char *name, DataType return_type, int param_count, DataType *param_types, bool is_main);
+void symtable_insert_function(char *name, DataType return_type, int param_count, int *param_sizes,
+                              DataType **param_types, bool is_main);
 
 #endif

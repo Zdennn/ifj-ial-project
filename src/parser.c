@@ -196,53 +196,59 @@ static DataType parse_call(Token token_id)
     if (symbol == NULL || symbol->symbol_type != SYM_FUNCTION)
         printError(ERR_SEM_UNDEF);
 
-    match(TOKEN_LZAVORKA);
+    int total_args = 0;
 
-    int arg = 0;
-    int carka = 0;
-
-    while (current_token.type != TOKEN_PZAVORKA && current_token.type != TOKEN_EOF)
+    for (int i = 0; i < symbol->param_count; i++)
     {
-        DataType arg_type = parse_expression();
+        match(TOKEN_LZAVORKA);
 
-        if (arg < symbol->param_count)
+        int arg = 0;
+        int carka = 0;
+
+        while (current_token.type != TOKEN_PZAVORKA && current_token.type != TOKEN_EOF)
         {
-            DataType expected = symbol->param_types[arg];
+            DataType arg_type = parse_expression();
 
-            if (expected != TYPE_ANY && arg_type != expected)
+            if (arg < symbol->param_sizes[i])
             {
-                if (!(arg_type == TYPE_INT && expected == TYPE_DOUBLE))
-                    printError(ERR_SEM_ARG);
+                DataType expected = symbol->param_types[i][arg];
 
-                gen_instr("INT2FLOATS", NULL, NULL, NULL); // GEN: Int argument pro parametr Double
+                if (expected != TYPE_ANY && arg_type != expected)
+                {
+                    if (!(arg_type == TYPE_INT && expected == TYPE_DOUBLE))
+                        printError(ERR_SEM_ARG);
+
+                    gen_instr("INT2FLOATS", NULL, NULL, NULL); // GEN: Int argument pro parametr Double
+                }
+            }
+
+            arg++;
+            total_args++;
+
+            if (current_token.type == TOKEN_CARKA)
+            {
+                match(TOKEN_CARKA);
+                carka++;
+            }
+            else
+            {
+                break;
             }
         }
 
-        arg++;
+        match(TOKEN_PZAVORKA);
 
-        if (current_token.type == TOKEN_CARKA)
+        if (arg != symbol->param_count)
+            printError(ERR_SEM_ARG);
+
+        if (carka != arg - 1 && !(arg == 0 && carka == 0))
         {
-            match(TOKEN_CARKA);
-            carka++;
-        }
-        else
-        {
-            break;
+            printError(ERR_SYN);
         }
     }
 
-    match(TOKEN_PZAVORKA);
-
-    if (arg != symbol->param_count)
-        printError(ERR_SEM_ARG);
-
-    if (carka != arg - 1 && !(arg == 0 && carka == 0))
-    {
-        printError(ERR_SYN);
-    }
-
-    gen_call(token_id.string, (size_t)arg); // GEN: argumenty už jsou na zásobníku
-    gen_push_retval();                      // GEN: výsledek volání zůstane na zásobníku
+    gen_call(token_id.string, (size_t)total_args); // GEN: argumenty už jsou na zásobníku
+    gen_push_retval();                             // GEN: výsledek volání zůstane na zásobníku
 
     return symbol->data_type;
 }
@@ -331,8 +337,7 @@ static DataType parse_if(DataType expected_return_type, bool has_explicit_return
     {
         last_type = type_then;
     }
-    else if ((type_then == TYPE_INT && type_else == TYPE_DOUBLE) ||
-             (type_then == TYPE_DOUBLE && type_else == TYPE_INT))
+    else if ((type_then == TYPE_INT && type_else == TYPE_DOUBLE) || (type_then == TYPE_DOUBLE && type_else == TYPE_INT))
     {
         last_type = TYPE_DOUBLE;
     }
@@ -341,7 +346,6 @@ static DataType parse_if(DataType expected_return_type, bool has_explicit_return
         // rozdilne typy
         last_type = TYPE_UNIT;
     }
-
 
     return last_type;
 }
@@ -782,17 +786,43 @@ ErrorCodes define_function_header()
         printError(ERR_SEM_REDEF);
     }
 
-    match(TOKEN_LZAVORKA);
-    /*
-        if (main_flag && current_token.type == TOKEN_ID)
-        {
-            printError(ERR_SEM_ARG);
-        }
-    */
-    int out_param_count = 0;
-    DataType *param_types = parse_parameters(&out_param_count);
+    int count = 0;
+    int capacity = 2;
+    int *sizes = malloc(capacity * sizeof(int));
+    DataType **types = malloc(capacity * sizeof(DataType *));
 
-    match(TOKEN_PZAVORKA);
+    if (sizes == NULL || types == NULL)
+    {
+        printError(ERR_INTERNAL);
+    }
+
+    int param_count = 0;
+
+    while (current_token.type == TOKEN_LZAVORKA)
+    {
+        match(TOKEN_LZAVORKA);
+        int out_param_count = 0;
+        DataType *param_types = parse_parameters(&out_param_count);
+        match(TOKEN_PZAVORKA);
+
+        if (count >= capacity)
+        {
+            capacity *= 2;
+            int *temp_sizes = realloc(sizes, capacity * sizeof(int));
+            DataType **temp_types = realloc(types, capacity * sizeof(DataType *));
+            if (temp_sizes == NULL || temp_types == NULL)
+            {
+                printError(ERR_INTERNAL);
+            }
+            sizes = temp_sizes;
+            types = temp_types;
+        }
+
+        sizes[count] = out_param_count;
+        types[count] = param_types;
+        count++;
+        param_count += out_param_count;
+    }
 
     DataType return_type = TYPE_UNDEF;
     bool explicit_type = false;
@@ -807,7 +837,7 @@ ErrorCodes define_function_header()
 
     if (main_flag)
     {
-        if (out_param_count > 0)
+        if (param_count > 0)
         {
             printError(ERR_SEM_ARG);
         }
@@ -817,7 +847,10 @@ ErrorCodes define_function_header()
         }
     }
 
-    symtable_insert_function(name, return_type, out_param_count, param_types, main_flag);
+    symtable_insert_function(name, return_type, count, sizes, types, main_flag);
+
+    free(sizes);
+    free(types);
 
     if (main_flag)
     {
@@ -1184,9 +1217,17 @@ DataType parse_expression()
                     break;
                 case TOKEN_ID: {
                     SymbolData *sym = symtable_lookup(current_token.string);
-                    if (sym != NULL && sym->symbol_type == SYM_VARIABLE)
+                    if (sym != NULL) // PARAMLISTS
                     {
-                        gen_push_var(sym->gen_name);
+                        if (sym->symbol_type == SYM_VARIABLE)
+                        {
+                            gen_push_var(sym->gen_name);
+                        }
+                        else if (sym->symbol_type == SYM_FUNCTION && sym->param_count == 0)
+                        {
+                            gen_call(sym->name, 0);
+                            gen_push_retval();
+                        }
                     }
                     break;
                 }
@@ -1342,7 +1383,8 @@ void parse_function()
     }
 
     char *function_name = NULL;
-    while (current_token.type != TOKEN_LZAVORKA)
+    while (current_token.type != TOKEN_LZAVORKA && current_token.type != TOKEN_DVOJTEC &&
+           current_token.type != TOKEN_ROVNO && current_token.type != TOKEN_EOF)
     {
         if (current_token.type == TOKEN_ID)
         {
@@ -1351,35 +1393,39 @@ void parse_function()
         get_next_token_from_array();
     }
 
+    size_t param_index = 0;            // GEN: pořadí parametru
     gen_function_begin(function_name); // GEN: začátek funkce (výstup se bufferuje)
 
-    match(TOKEN_LZAVORKA);
-
-    size_t param_index = 0; // GEN: pořadí parametru
-    while (current_token.type != TOKEN_PZAVORKA)
+    while (current_token.type == TOKEN_LZAVORKA) // PARAMLISTS
     {
-        Token token_name = match(TOKEN_ID);
-        match(TOKEN_DVOJTEC);
-        Token token_type = match_type();
 
-        // duplicitní parametry
-        if (symtable_lookup_current(token_name.string) != NULL)
+        match(TOKEN_LZAVORKA);
+
+        while (current_token.type != TOKEN_PZAVORKA)
         {
-            printError(ERR_SEM_REDEF);
+            Token token_name = match(TOKEN_ID);
+            match(TOKEN_DVOJTEC);
+            Token token_type = match_type();
+
+            // duplicitní parametry
+            if (symtable_lookup_current(token_name.string) != NULL)
+            {
+                printError(ERR_SEM_REDEF);
+            }
+
+            symtable_insert_var(token_name.string, token_to_dataType(token_type), false);
+
+            SymbolData *param = symtable_lookup_current(token_name.string); // GEN
+            gen_function_param(param->gen_name, param_index++);             // GEN
+
+            if (current_token.type == TOKEN_CARKA)
+            {
+                match(TOKEN_CARKA);
+            }
         }
 
-        symtable_insert_var(token_name.string, token_to_dataType(token_type), false);
-
-        SymbolData *param = symtable_lookup_current(token_name.string); // GEN
-        gen_function_param(param->gen_name, param_index++);             // GEN
-
-        if (current_token.type == TOKEN_CARKA)
-        {
-            match(TOKEN_CARKA);
-        }
+        match(TOKEN_PZAVORKA);
     }
-
-    match(TOKEN_PZAVORKA);
 
     SymbolData *symbol = symtable_lookup(function_name);
     bool explicit = (symbol && symbol->data_type != TYPE_UNDEF);
