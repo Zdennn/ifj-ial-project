@@ -1,0 +1,17 @@
+import ifj26.*
+
+@main def run(): Unit =
+  val s = "abcd"
+  print(s.length)
+  print(" ")
+  val d = 0.0 - 2.5
+  print(d.floor.toInt)
+  print(" ")
+  print((1.25).toString)
+  print(" ")
+  val n = 12
+  print(n.toString + "!")
+  print(" ")
+  print("x".length + 1)
+  print(" ")
+  print((2.5).floor.toString)

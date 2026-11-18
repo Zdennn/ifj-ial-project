@@ -1146,6 +1146,49 @@ static DataType expression_to_DataType(Token token)
     }
 }
 
+/* VALMEM: použití členu hodnoty (výraz.id). Hodnota příjemce je na datovém zásobníku, výsledek tam zůstane místo ní.
+ * Vrací typ výsledku. Člen se převede na volání vestavěné funkce. */
+static DataType parse_member(DataType receiver, Token member)
+{
+    const char *name = member.string;
+
+    if (strcmp(name, "toString") == 0)
+    {
+        gen_call("toStr", 1);
+        gen_push_retval();
+        return TYPE_STRING;
+    }
+    if (strcmp(name, "toInt") == 0 || strcmp(name, "floor") == 0)
+    {
+        if (receiver != TYPE_DOUBLE)
+        {
+            printError(ERR_SEM_TYPE);
+        }
+        if (strcmp(name, "toInt") == 0)
+        {
+            gen_call("toInt", 1);
+            gen_push_retval();
+            return TYPE_INT;
+        }
+        gen_call("$floor", 1);
+        gen_push_retval();
+        return TYPE_DOUBLE;
+    }
+    if (strcmp(name, "length") == 0)
+    {
+        if (receiver != TYPE_STRING)
+        {
+            printError(ERR_SEM_TYPE);
+        }
+        gen_call("strLength", 1);
+        gen_push_retval();
+        return TYPE_INT;
+    }
+
+    printError(ERR_SEM_UNDEF); /* jiný člen není podporován */
+    return TYPE_UNIT;
+}
+
 DataType parse_expression()
 {
     // bude zpravovavat expresion ve:
@@ -1183,6 +1226,19 @@ DataType parse_expression()
     int depth = 0;
     while (true)
     {
+        /* VALMEM: člen hodnoty (výraz.id) se zpracuje hned za operandem, váže silněji než všechny operátory */
+        if (current_token.type == TOKEN_TECKA && token_index < tokens.count && tokens.items[token_index].type == TOKEN_ID)
+        {
+            StackItem *operand = stack_top(&stack);
+            if (operand->sem_type == SEM_NONTERMINAL || (operand->sem_type == SEM_TERMINAL && operand->prec_sym == PREC_ID))
+            {
+                match(TOKEN_TECKA);
+                Token member = match(TOKEN_ID);
+                operand->data_type = parse_member(operand->data_type, member);
+                continue;
+            }
+        }
+
         StackItem *top_term = stack_top_terminal(&stack);
         PrecIndex input_prec_index = token_to_index(current_token.type);
 

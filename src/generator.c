@@ -802,6 +802,23 @@ static void builtin_subStr(void)
     gen_function_end();
 }
 
+/* floor(x: Double): Double pro člen .floor (VALMEM). Jméno začíná $, takže se nemůže střetnout s funkcí uživatele. */
+static void builtin_floor(void)
+{
+    gen_function_begin("$floor");
+    gen_defvar_local("$r");
+    gen_defvar_local("$i");
+    gen_defvar_local("$c");
+    gen_instr("FLOAT2INT", "LF@$i", "LF@$p0", NULL); /* osekne k nule */
+    gen_instr("INT2FLOAT", "LF@$r", "LF@$i", NULL);
+    gen_instr("GT", "LF@$c", "LF@$r", "LF@$p0"); /* u záporných čísel je osekání větší než x */
+    gen_instr("JUMPIFEQ", "$floor_done", "LF@$c", "bool@false");
+    gen_instr("SUB", "LF@$r", "LF@$r", "float@0x1p+0");
+    gen_label("$floor_done");
+    gen_function_return("LF@$r");
+    gen_function_end();
+}
+
 void gen_builtins(void)
 {
     builtin_print();
@@ -810,6 +827,7 @@ void gen_builtins(void)
     builtin_read("readDouble", "float", "float@0x0p+0");
     builtin_read("readBoolean", "bool", "bool@false"); /* BOOLTHEN */
     builtin_toStr();
+    builtin_floor(); /* VALMEM */
     builtin_unary("toInt", "FLOAT2INT");
     builtin_unary("strLength", "STRLEN");
     builtin_unary("chr", "INT2CHAR");
