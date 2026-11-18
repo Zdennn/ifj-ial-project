@@ -338,6 +338,15 @@ static DataType parse_if(DataType expected_return_type, bool has_explicit_return
 
     gen_if_else(if_id); // GEN: JUMP na konec if a návěští else
 
+    /* BOOLTHEN: if bez else. Else existuje jen tehdy, když stejně odsazený řádek začíná tokenem else. */
+    bool has_else = current_token.type == TOKEN_ODSAZENI && current_token.int_val == pocet_odsazeni &&
+                    token_index < tokens.count && tokens.items[token_index].type == TOKEN_ELSE;
+    if (!has_else)
+    {
+        gen_if_end(if_id); // GEN: chybějící else je prázdná větev
+        return TYPE_UNIT;
+    }
+
     // Else musí mít stejné odsazení jako if!
     if (current_token.type != TOKEN_ODSAZENI || current_token.int_val != pocet_odsazeni)
     {
@@ -347,7 +356,11 @@ static DataType parse_if(DataType expected_return_type, bool has_explicit_return
     match(TOKEN_ELSE);
 
     DataType type_else = TYPE_UNIT;
-    if (current_token.type == TOKEN_EOL)
+    if (current_token.type == TOKEN_IF)
+    {
+        type_else = parse_if(expected_return_type, has_explicit_return, pocet_odsazeni); // BOOLTHEN: else if
+    }
+    else if (current_token.type == TOKEN_EOL)
     {
         match(TOKEN_EOL);
 
