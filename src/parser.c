@@ -1006,6 +1006,15 @@ DataType kontrola_typu(DataType left_type, PrecIndex op, DataType right_type, To
         }
         break;
 
+    case PREC_AND: /* BOOLTHEN: oba operandy musí být Boolean */
+    case PREC_OR:
+        if (left_type == TYPE_BOOLEAN && right_type == TYPE_BOOLEAN)
+        {
+            return TYPE_BOOLEAN;
+        }
+        printError(ERR_SEM_TYPE);
+        break;
+
     default:
         printError(ERR_SEM_TYPE);
         break;
@@ -1173,6 +1182,12 @@ DataType parse_expression()
                     break;
                 }
             }
+            /* GEN: zkratové && a || (BOOLTHEN), levý operand je už na datovém zásobníku */
+            if (current_token.type == TOKEN_AND || current_token.type == TOKEN_OR)
+            {
+                gen_logic_begin(current_token.type);
+            }
+
             get_next_token_from_array();
             break;
 
@@ -1253,7 +1268,14 @@ DataType parse_expression()
                     TokenType op_token = stack_items[1].token_type;
 
                     result_type = kontrola_typu(left_type, op, right_type, op_token);
-                    gen_binary(op_token, left_type, right_type);
+                    if (op_token == TOKEN_AND || op_token == TOKEN_OR)
+                    {
+                        gen_logic_end(op_token); // GEN: zkratové && a ||
+                    }
+                    else
+                    {
+                        gen_binary(op_token, left_type, right_type);
+                    }
                 }
                 else
                 {

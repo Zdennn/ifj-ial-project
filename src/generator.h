@@ -207,6 +207,20 @@ void gen_push_var(const char *gen_name);
 void gen_binary(TokenType op, DataType left, DataType right);
 
 /**
+ * Zkratové && a || (BOOLTHEN), první část: volat hned po načtení operátoru,
+ * když je levý operand na datovém zásobníku. Vyzvedne ho a při zkratu skočí na výsledek.
+ * @param op TOKEN_AND nebo TOKEN_OR.
+ */
+void gen_logic_begin(TokenType op);
+
+/**
+ * Zkratové && a || (BOOLTHEN), druhá část: volat při redukci E op E,
+ * když je pravý operand na datovém zásobníku. Vloží výsledek zkratu a koncové návěští.
+ * @param op TOKEN_AND nebo TOKEN_OR.
+ */
+void gen_logic_end(TokenType op);
+
+/**
  * @brief Unární mínus nad hodnotou na vrcholu zásobníku.
  * @param type TYPE_INT nebo TYPE_DOUBLE.
  */

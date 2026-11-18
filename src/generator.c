@@ -498,6 +498,49 @@ void gen_binary(TokenType op, DataType left, DataType right)
     }
 }
 
+/* Zkratové && a || (BOOLTHEN): čísla návěští rozpracovaných operátorů. */
+#define GEN_LOGIC_MAX 256
+static int logic_ids[GEN_LOGIC_MAX];
+static int logic_top = 0;
+
+/* Voláme hned po načtení operátoru, levý operand je na datovém zásobníku. */
+void gen_logic_begin(TokenType op)
+{
+    char short_label[GEN_NAME_MAX];
+    int id = gen_new_label_id();
+
+    if (logic_top >= GEN_LOGIC_MAX)
+    {
+        internal_error("gen_logic_begin: prilis hluboke vnoreni");
+    }
+    logic_ids[logic_top++] = id;
+
+    gen_label_name(short_label, sizeof(short_label), op == TOKEN_AND ? "and_short" : "or_short", id);
+    gen_instr("POPS", "GF@$tmp1", NULL, NULL);
+    gen_instr("JUMPIFEQ", short_label, "GF@$tmp1", op == TOKEN_AND ? "bool@false" : "bool@true");
+}
+
+/* Voláme při redukci E op E, pravý operand je na datovém zásobníku. */
+void gen_logic_end(TokenType op)
+{
+    char short_label[GEN_NAME_MAX];
+    char end_label[GEN_NAME_MAX];
+
+    if (logic_top <= 0)
+    {
+        internal_error("gen_logic_end: chybi gen_logic_begin");
+    }
+    int id = logic_ids[--logic_top];
+
+    gen_label_name(short_label, sizeof(short_label), op == TOKEN_AND ? "and_short" : "or_short", id);
+    gen_label_name(end_label, sizeof(end_label), "logic_end", id);
+
+    gen_instr("JUMP", end_label, NULL, NULL);
+    gen_label(short_label);
+    gen_instr("PUSHS", op == TOKEN_AND ? "bool@false" : "bool@true", NULL, NULL);
+    gen_label(end_label);
+}
+
 void gen_unary_minus(DataType type)
 {
     /* Násobení -1 zachová i záporné nuly u desetinných čísel. */
