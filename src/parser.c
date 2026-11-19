@@ -325,11 +325,6 @@ static DataType parse_value()
             }
         }
 
-        if (next.type == TOKEN_LZAVORKA)
-        {
-            Token id_tok = match(TOKEN_ID);
-            return parse_call(id_tok);
-        }
     }
 
     return parse_expression();
@@ -471,6 +466,22 @@ static DataType parse_if(DataType expected_return_type, bool has_explicit_return
     return last_type;
 }
 
+/* CONTROL: ve víceřádkové hlavičce for přejde na další řádek hlavičky (řádek stráže má odsazení hlavičky, do je na úrovni for) */
+static void for_next_header_line(int header_indent, int pocet_odsazeni)
+{
+    if (header_indent < 0 || current_token.type != TOKEN_EOL)
+    {
+        return;
+    }
+    match(TOKEN_EOL);
+    if (current_token.type != TOKEN_ODSAZENI ||
+        (current_token.int_val != header_indent && current_token.int_val != pocet_odsazeni))
+    {
+        printError(ERR_SYN);
+    }
+    match(TOKEN_ODSAZENI);
+}
+
 /* CONTROL: cyklus for. Tvar: for i <- od to|until do [by krok] [if stráž]... do tělo */
 static DataType parse_for(DataType expected_return_type, bool has_explicit_return, int pocet_odsazeni)
 {
@@ -479,6 +490,17 @@ static DataType parse_for(DataType expected_return_type, bool has_explicit_retur
     bool inclusive = true;
 
     match(TOKEN_FOR);
+    int header_indent = -1; /* CONTROL: odsazení víceřádkové hlavičky, -1 = hlavička na jednom řádku */
+    if (current_token.type == TOKEN_EOL)
+    {
+        match(TOKEN_EOL);
+        if (current_token.type != TOKEN_ODSAZENI || current_token.int_val <= pocet_odsazeni)
+        {
+            printError(ERR_SYN);
+        }
+        header_indent = current_token.int_val;
+        match(TOKEN_ODSAZENI);
+    }
     Token var = match(TOKEN_ID);
     match(TOKEN_LARROW);
 
@@ -526,6 +548,7 @@ static DataType parse_for(DataType expected_return_type, bool has_explicit_retur
     gen_for_init(var_sym->gen_name, for_id, has_step);
     gen_for_begin(var_sym->gen_name, for_id, inclusive);
 
+    for_next_header_line(header_indent, pocet_odsazeni);
     while (current_token.type == TOKEN_IF)
     {
         match(TOKEN_IF);
@@ -534,6 +557,7 @@ static DataType parse_for(DataType expected_return_type, bool has_explicit_retur
             printError(ERR_SEM_TYPE);
         }
         gen_for_guard(for_id);
+        for_next_header_line(header_indent, pocet_odsazeni);
     }
 
     match(TOKEN_DO);
@@ -1647,6 +1671,7 @@ DataType parse_expression()
             match(TOKEN_LZAVORKA);
             match(TOKEN_PZAVORKA);
             stack_free(&stack);
+            gen_push("string@()"); /* GEN: hodnota () je Unit a musí ležet na zásobníku jako každý výraz */
             return TYPE_UNIT;
         }
     }
