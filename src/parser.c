@@ -1038,7 +1038,6 @@ ErrorCodes define_function_header()
 
         sizes[count] = out_param_count;
         types[count] = param_types;
-        free(param_types);
         count++;
         param_count += out_param_count;
     }
@@ -1068,6 +1067,10 @@ ErrorCodes define_function_header()
 
     symtable_insert_function(name, return_type, count, sizes, types, main_flag);
 
+    for (int i = 0; i < count; i++)
+    {
+        free(types[i]); /* vnitřní pole parametrů, tabulka symbolů má vlastní kopii */
+    }
     free(sizes);
     free(types);
 
