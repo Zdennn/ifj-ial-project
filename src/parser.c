@@ -1243,6 +1243,7 @@ static void rewrite_extensions(void)
 
                     token_array_append(&out, tokens.items[d]);
                     token_array_append(&out, ext_make_token(TOKEN_ID, full, name_tok.line));
+                    free(name_tok.string); /* původní jméno metody se už nepoužije, v tokenech je přepsaná kopie */
                     if (parens)
                     {
                         token_array_append(&out, tokens.items[d + 2]); /* ( */
@@ -1275,6 +1276,7 @@ static void rewrite_extensions(void)
             i++;
         }
 
+        free(recv_name.string); /* původní jméno příjemce z hlavičky, v tokenech jsou už jeho kopie */
         if (methods == 0)
         {
             printError(ERR_SYN); /* extension bez jediné metody */
