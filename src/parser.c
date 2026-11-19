@@ -324,7 +324,6 @@ static DataType parse_value()
                 printError(ERR_SEM_ARG);
             }
         }
-
     }
 
     return parse_expression();
@@ -466,7 +465,8 @@ static DataType parse_if(DataType expected_return_type, bool has_explicit_return
     return last_type;
 }
 
-/* CONTROL: ve víceřádkové hlavičce for přejde na další řádek hlavičky (řádek stráže má odsazení hlavičky, do je na úrovni for) */
+/* CONTROL: ve víceřádkové hlavičce for přejde na další řádek hlavičky (řádek stráže má odsazení hlavičky, do je na
+ * úrovni for) */
 static void for_next_header_line(int header_indent, int pocet_odsazeni)
 {
     if (header_indent < 0 || current_token.type != TOKEN_EOL)
@@ -1317,6 +1317,12 @@ ErrorCodes parse()
     while (current_token.type != TOKEN_EOF)
     {
         parse_function();
+    }
+
+    for (int i = 0; i < EXT_MAX; i++)
+    {
+        free(ext_names[i]);
+        ext_names[i] = NULL;
     }
 
     symtable_dispose();
