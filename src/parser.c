@@ -121,11 +121,9 @@ ErrorCodes get_n_token()
 int token_index = 0;
 void get_next_token_from_array()
 {
-    // printf("token index: %d\n", token_index);
     if (token_index < tokens.count)
     {
         current_token = tokens.items[token_index++];
-        // printf("current: %s\n", getTokenName(current_token.type));
     }
     else
     {
@@ -139,9 +137,6 @@ void reset_parser_position()
 
 Token match(TokenType expected)
 {
-    // fprintf(stderr, "current: %s, expected: %s, line: %d\n", getTokenName(current_token.type),
-    // getTokenName(expected),
-    //         current_token.line);
     if (current_token.type == expected)
     {
         Token old_token = current_token;
@@ -161,7 +156,7 @@ Token match_type()
     {
     case TOKEN_INT:
         return match(TOKEN_INT);
-        break; // všechny breaky jsou zbytečné protoze tam mame return :D
+        break;
     case TOKEN_DOUBLE:
         return match(TOKEN_DOUBLE);
         break;
@@ -594,8 +589,6 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
 
     int pocet_odsazeni = current_token.int_val;
 
-    // printf("parse_block\n");
-
     while (current_token.type != TOKEN_EOF)
     {
         if (current_token.type == TOKEN_EOL)
@@ -777,50 +770,6 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             break;
 
         case TOKEN_ID:
-
-            // TODO asi resit az v parse_expresion()
-            // TODO bude zpracovávvat napr. a = 5, foo(5), a + b, foo(5) - a + 5
-            // TODO tahkle si akorat smazu tkone_id ktere pote bude chybet v parse_expression()
-            /*
-                        token_id = match(TOKEN_ID);
-                        SymbolData *symbol = symtable_lookup(token_id.string);
-                        if (symbol == NULL)
-                        {
-                            printError(ERR_SEM_UNDEF);
-                        }
-
-                        if (current_token.type == TOKEN_ROVNO)
-                        {
-                            // výraz
-                            match(TOKEN_ROVNO);
-                            if (!symbol->is_var)
-                            {
-                                printError(ERR_SEM_UNMOD);
-                            }
-                            type_of_expresion = parse_expression();
-                        }
-                        else if (current_token.type == TOKEN_LZAVORKA)
-                        {
-                            // Volání funkce
-                            // TODO sedí parametry (chyba 5)??
-                            match(TOKEN_LZAVORKA);
-                            type_of_expresion = parse_expression();
-                            match(TOKEN_PZAVORKA);
-                        }
-                        else
-                        {
-                            // Konec bloku
-                            parse_expression();
-                        }
-
-                        if (type_of_expresion != symbol->data_type)
-                        {
-                            if (!(type_of_expresion == TYPE_INT && symbol->data_type == TYPE_DOUBLE))
-                            {
-                                printError(ERR_SEM_TYPE);
-                            }
-                        }
-            */
             ////////////////////////////////////////////!
             Token next = (token_index < tokens.count) ? tokens.items[token_index] : current_token;
 
@@ -954,13 +903,10 @@ void read_file_by_tokens()
 
     while (current_token.type != TOKEN_EOF)
     {
-        // printf("Token name: %s, line: %d, int val: %d, double val: %f, string val: %s\n",
-        //        getTokenName(current_token.type), current_token.line, current_token.int_val, current_token.double_val,
-        //        current_token.string);
+
         token_array_append(&tokens, current_token);
         get_n_token();
     }
-    // printf("Token name: %s, line: %d\n", getTokenName(current_token.type), current_token.line);
     token_array_append(&tokens, current_token);
 }
 
@@ -1019,8 +965,6 @@ ErrorCodes define_function_header()
     match(TOKEN_DEF);
 
     char *name = match(TOKEN_ID).string;
-
-    // printf("%s\n", name);
 
     SymbolData *symbol = symtable_lookup(name);
     if (symbol != NULL)
@@ -1650,21 +1594,6 @@ static DataType parse_member(DataType receiver, Token member)
 
 DataType parse_expression()
 {
-    // bude zpravovavat expresion ve:
-    // while, if => boolean
-    // val, var (definice) => hodnota, funkce
-    // token_id (volani funkce, prirazeni do existujici funkce) => hodnota, funkce
-    // TODO zjistit jestli je to volání funkce nebo expression, teoreticky to je
-    /*
-    fprintf(stderr, "EXPRESION\n");
-    while (current_token.type != TOKEN_EOL && current_token.type != TOKEN_DO && current_token.type != TOKEN_THEN &&
-           current_token.type != TOKEN_CARKA && current_token.type != TOKEN_PZAVORKA && current_token.type != TOKEN_EOF)
-    {
-        get_next_token_from_array();
-    }
-
-    */
-
     PrecStack stack;
     stack_init(&stack);
 
