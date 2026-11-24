@@ -1249,8 +1249,6 @@ ErrorCodes parse()
         printError(ERR_SEM_UNDEF);
     }
 
-    // fprintf(stderr, "Konec privniho cteni\n");
-
     gen_header();
     gen_program_start(main_name);
     gen_builtins();
