@@ -2,7 +2,7 @@
  * @file error.h
  * @brief Definice chybových kódů - enum.
  *
- * @author Zdeněk Michalec
+ * @author ...
  */
 
 #ifndef ERROR_H

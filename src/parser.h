@@ -6,7 +6,7 @@
  * Řídicí struktury a deklarace jsou zpracovány metodou rekurzivního sestupu (shora dolů),
  * zatímco výrazy a operace jsou delegovány na precedenční syntaktickou analýzu (zdola nahoru).
  *
- * @author Zdeněk Michalec, Jonáš Javůrek, Tadeáš Trynkl
+ * @author ...
  */
 #ifndef PARSER_H
 #define PARSER_H

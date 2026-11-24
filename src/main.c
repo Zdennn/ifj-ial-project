@@ -2,7 +2,7 @@
  * @file main.c
  * @brief Vstupni bod aplikace.
  *
- * @author ...
+ * @author Zdeněk Michalec, Jonáš Javůrek, Tadeáš Trynkl
  */
 
 #include "error.h"

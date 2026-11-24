@@ -5,7 +5,7 @@
  * Ukládá informace o identifikátorech (proměnných) a jejich vlastnostech (typ, hodnota).
  * Varianta vv-BVS = Výškově vyvážený binární vyhledávací strom
  *
- * @author ...
+ * @author Zdeněk Michalec, Jonáš Javůrek, Tadeáš Trynkl
  */
 #include "symtable.h"
 #include "bst.h"

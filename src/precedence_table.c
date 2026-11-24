@@ -3,7 +3,7 @@
  *
  * @brief Implementace precedenční tabulky a mapovací funkce.
  *
- * @author Zdeněk Michalec
+ * @author Zdeněk Michalec, Jonáš Javůrek, Tadeáš Trynkl
  */
 
 #include "precedence_table.h"
@@ -27,37 +27,6 @@ static const PrecOperation prec_table[11][11] = {
     /* )   */ {PREC_R, PREC_R, PREC_R, PREC_R, PREC_R, PREC_R, PREC_R, PREC_ERR, PREC_R, PREC_ERR, PREC_R},
     /* id  */ {PREC_R, PREC_R, PREC_R, PREC_R, PREC_R, PREC_R, PREC_R, PREC_ERR, PREC_R, PREC_ERR, PREC_R},
     /* $   */ {PREC_S, PREC_S, PREC_S, PREC_S, PREC_S, PREC_S, PREC_S, PREC_S, PREC_ERR, PREC_S, PREC_ERR}};
-
-// static const PrecOperation prec_table[11][11] = {
-//     //              !       * /     + -     rel     ==      &&      ||      (       )       id      $
-//     /* !    */ {
-//         {PREC_S}, {PREC_S}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_S}, {PREC_R}, {PREC_S},
-//         {PREC_R}},
-//     /* * /  */
-//     {{PREC_S}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_S}, {PREC_R}, {PREC_S}, {PREC_R}},
-//     /* + -  */
-//     {{PREC_S}, {PREC_S}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_S}, {PREC_R}, {PREC_S}, {PREC_R}},
-//     /* rel  */
-//     {{PREC_S}, {PREC_S}, {PREC_S}, {PREC_ERR}, {PREC_ERR}, {PREC_R}, {PREC_R}, {PREC_S}, {PREC_R}, {PREC_S},
-//     {PREC_R}},
-//     /* ==   */
-//     {{PREC_S}, {PREC_S}, {PREC_S}, {PREC_ERR}, {PREC_ERR}, {PREC_R}, {PREC_R}, {PREC_S}, {PREC_R}, {PREC_S},
-//     {PREC_R}},
-//     /* &&   */
-//     {{PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_R}, {PREC_R}, {PREC_S}, {PREC_R}, {PREC_S}, {PREC_R}},
-//     /* ||   */
-//     {{PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_R}, {PREC_S}, {PREC_R}, {PREC_S}, {PREC_R}},
-//     /* (    */
-//     {{PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_E}, {PREC_S}, {PREC_ERR}},
-//     /* )    */
-//     {{PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_ERR}, {PREC_R}, {PREC_ERR},
-//     {PREC_R}},
-//     /* id   */
-//     {{PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_R}, {PREC_ERR}, {PREC_R}, {PREC_ERR},
-//     {PREC_R}},
-//     /* $    */
-//     {{PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_S}, {PREC_ERR}, {PREC_S},
-//     {PREC_ERR}}};
 
 PrecOperation get_prec_operation(PrecIndex stack_top, PrecIndex input_token)
 {

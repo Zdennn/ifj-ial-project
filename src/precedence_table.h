@@ -5,7 +5,7 @@
  * Obsahuje indexy pro mapování tokenů do tabulky a definici
  * operací pro syntaktickou analýzu.
  *
- * @author Zdeněk Michalec
+ * @author ...
  */
 
 #ifndef PREC_TABLE_H

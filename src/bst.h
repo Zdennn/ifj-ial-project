@@ -5,7 +5,7 @@
  * Výškově vyvážený binární vyhledávací strom s klíči a daty libovolného typu.
  * Porovnání klíčů a uvolňování paměti zajišťují funkce předané při inicializaci.
  *
- * @author Jonáš Javůrek
+ * @author ...
  */
 
 #ifndef BST_H

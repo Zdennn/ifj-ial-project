@@ -6,7 +6,7 @@
  *
  * Řesenou pomocí metody rekurzivního sestupu a precedenční syntaktickou analýzu
  *
- * @author Zdeněk Michalec
+ * @author Zdeněk Michalec, Jonáš Javůrek, Tadeáš Trynkl
  */
 #include "parser.h"
 #include "error.h"

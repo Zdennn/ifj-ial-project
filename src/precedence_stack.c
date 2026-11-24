@@ -3,7 +3,7 @@
  *
  * @brief Implementace operací precedenčního zásobníku.
  *
- * @author Zdeněk Michalec
+ * @author Zdeněk Michalec, Jonáš Javůrek, Tadeáš Trynkl
  */
 
 #include "precedence_stack.h"

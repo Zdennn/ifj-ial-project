@@ -4,7 +4,7 @@
  *
  * Obecný AVL strom (Výškově vyvážený binární vyhledávací strom)
  *
- * @author Jonáš Javůrek
+ * @author Jonáš Javůrek, Tadeáš Trynkl, Zdeněk Michalec
  */
 #include "bst.h"
 #include <stdlib.h>

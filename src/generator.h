@@ -4,7 +4,7 @@
  *
  * Implementace překladače imperativního jazyka IFJ26
  *
- * @author Trynkl Tadeáš, Javůrek Jonáš, Zdeněk Michalec
+ * @author ...
  */
 
 #ifndef GENERATOR_H
