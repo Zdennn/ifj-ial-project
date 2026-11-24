@@ -250,12 +250,20 @@ static int scan_interpolated(Token *token)
         int c2 = read_char();
         if (c2 == '"')
         {
-            multi = 1; /* s""" začíná víceřádkový řetězec */
+            int c3 = read_char();
+            if (c3 == '"')
+            {
+                multi = 1; /* s""" začíná víceřádkový řetězec */
+            }
+            else
+            {
+                unread_char(c3, stdin);
+                closed = 1; /* s"" je prázdný řetězec */
+            }
         }
         else
         {
             unread_char(c2, stdin);
-            closed = 1; /* s"" je prázdný řetězec */
         }
     }
     else
@@ -477,7 +485,6 @@ int get_next_token(Token *token)
             return ERR_OK;
         }
 
-
         if (c == ' ')
         {
             if (zacatek)
@@ -616,7 +623,7 @@ int get_next_token(Token *token)
         }
 
         if (po_kom)
-            return ERR_LEX;
+            return ERR_SYN;
 
         if (kontrola)
         {
@@ -767,7 +774,7 @@ int get_next_token(Token *token)
             else
             {
                 if (len == 1 && buffer[0] == '_')
-                    return ERR_LEX;
+                    return ERR_SYN;
 
                 token->type = TOKEN_ID;
                 token->line = current_line;
@@ -1148,12 +1155,12 @@ int get_next_token(Token *token)
                 {
                     unread_char(c, stdin);
                 }
-                token->type = TOKEN_NOT; //BOOLTHEN
+                token->type = TOKEN_NOT; // BOOLTHEN
                 token->line = current_line;
                 return ERR_OK;
             }
         }
-        if (c == '&') //BOOLTHEN
+        if (c == '&') // BOOLTHEN
         {
             if ((c = read_char()) != EOF && c == '&') // &&
             {
@@ -1163,7 +1170,7 @@ int get_next_token(Token *token)
             }
             return ERR_LEX;
         }
-        if (c == '|') //BOOLTHEN
+        if (c == '|') // BOOLTHEN
         {
             if ((c = read_char()) != EOF && c == '|') // ||
             {

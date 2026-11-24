@@ -1051,7 +1051,15 @@ ErrorCodes define_function_header()
 
     while (current_token.type != TOKEN_ZAVINAC && current_token.type != TOKEN_DEF && current_token.type != TOKEN_EOF)
     {
+        bool eol = (current_token.type == TOKEN_EOL);
         get_next_token_from_array();
+
+        // nový řádek bez odsazení začíná novou funkcí jinak err_syn
+        if (eol && current_token.type != TOKEN_ODSAZENI && current_token.type != TOKEN_EOL &&
+            current_token.type != TOKEN_ZAVINAC && current_token.type != TOKEN_DEF && current_token.type != TOKEN_EOF)
+        {
+            printError(ERR_SYN);
+        }
     }
 
     return 0;
@@ -1912,16 +1920,8 @@ void parse_function()
         }
     }
 
-    char *function_name = NULL;
-    while (current_token.type != TOKEN_LZAVORKA && current_token.type != TOKEN_DVOJTEC &&
-           current_token.type != TOKEN_ROVNO && current_token.type != TOKEN_EOF)
-    {
-        if (current_token.type == TOKEN_ID)
-        {
-            function_name = current_token.string;
-        }
-        get_next_token_from_array();
-    }
+    match(TOKEN_DEF);
+    char *function_name = match(TOKEN_ID).string;
 
     size_t param_index = 0;            // GEN: pořadí parametru
     gen_function_begin(function_name); // GEN: začátek funkce (výstup se bufferuje)
