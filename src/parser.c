@@ -602,12 +602,14 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
     DataType last_type = TYPE_UNIT;
 
     int pocet_odsazeni = current_token.int_val;
+    bool novy_radek = 1;
 
     while (current_token.type != TOKEN_EOF)
     {
         if (current_token.type == TOKEN_EOL)
         {
             match(TOKEN_EOL);
+            novy_radek = 1;
             continue;
         }
         if (current_token.type == TOKEN_ODSAZENI)
@@ -626,15 +628,17 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             {
                 // Pokracuje ve stejnem bloku
                 match(TOKEN_ODSAZENI);
+                novy_radek = 0;
             }
         }
         else
         {
-            if (pocet_odsazeni > 0)
+            if (pocet_odsazeni > 0 && novy_radek)
             {
                 // Konec bloku, radek nezacina odsazenim, ale jsem v v odsazenem bloku
                 return last_type;
             }
+            novy_radek = 0;
         }
 
         Token token_id;
@@ -905,9 +909,21 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             break;
         }
 
-        if (current_token.type == TOKEN_EOL)
+        if (current_token.type == TOKEN_EOL || current_token.type == TOKEN_STREDNIK)
         {
-            match(TOKEN_EOL);
+            bool eol = (current_token.type == TOKEN_EOL);
+            bool strednik = (current_token.type == TOKEN_STREDNIK);
+            match(current_token.type);
+
+            if (eol)
+            {
+                novy_radek = 1;
+            }
+
+            if (strednik && current_token.type == TOKEN_STREDNIK)
+            {
+                printError(ERR_SYN);
+            }
         }
     }
     return last_type;
