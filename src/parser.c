@@ -1219,11 +1219,31 @@ static void rewrite_extensions(void)
                         token_array_append(&out, ext_make_token(TOKEN_ID, recv_name.string, name_tok.line));
                         token_array_append(&out, ext_make_token(TOKEN_DVOJTEC, NULL, name_tok.line));
                         token_array_append(&out, recv_type);
-                        if (tokens.items[d + 3].type != TOKEN_PZAVORKA)
+                        int idx = d + 3;
+                        if (idx < tokens.count && tokens.items[idx].type != TOKEN_PZAVORKA)
                         {
                             token_array_append(&out, ext_make_token(TOKEN_CARKA, NULL, name_tok.line));
+                            int depth = 0;
+                            while (idx < tokens.count)
+                            {
+                                Token tok = tokens.items[idx];
+                                if (tok.type == TOKEN_LZAVORKA)
+                                {
+                                    depth++;
+                                }
+                                else if (tok.type == TOKEN_PZAVORKA)
+                                {
+                                    if (depth == 0)
+                                    {
+                                        break;
+                                    }
+                                    depth--;
+                                }
+                                token_array_append(&out, tok);
+                                idx++;
+                            }
                         }
-                        i = d + 3;
+                        i = idx;
                     }
                     else
                     {
@@ -1496,59 +1516,82 @@ static DataType expression_to_DataType(Token token)
 static DataType parse_ext_call(char *full_name, int parens)
 {
     SymbolData *symbol = symtable_lookup(full_name);
-    if (symbol == NULL || symbol->symbol_type != SYM_FUNCTION || symbol->param_count != 1)
+    if (symbol == NULL || symbol->symbol_type != SYM_FUNCTION)
     {
         printError(ERR_SEM_UNDEF);
     }
 
-    int arg = 1; /* příjemce se počítá jako první argument */
+    int total = 0;
 
     if (parens)
     {
-        if (current_token.type != TOKEN_LZAVORKA)
+        for (int p = 0; p < symbol->param_count; p++)
         {
-            printError(ERR_SEM_ARG); /* metoda definovaná se závorkami se bez nich volat nesmí */
-        }
-        match(TOKEN_LZAVORKA);
-        while (current_token.type != TOKEN_PZAVORKA && current_token.type != TOKEN_EOF)
-        {
-            DataType arg_type = parse_expression();
-            if (arg >= symbol->param_sizes[0])
+            if (current_token.type != TOKEN_LZAVORKA)
             {
-                printError(ERR_SEM_ARG);
+                printError(ERR_SEM_ARG); /* metoda definovaná se závorkami se bez nich volat nesmí */
             }
-            DataType expected = symbol->param_types[0][arg];
-            if (expected != TYPE_ANY && arg_type != expected)
+            match(TOKEN_LZAVORKA);
+
+            int arg = (p == 0) ? 1 : 0; /* příjemce se počítá jako první argument */
+
+            while (current_token.type != TOKEN_PZAVORKA && current_token.type != TOKEN_EOF)
             {
-                if (!(arg_type == TYPE_INT && expected == TYPE_DOUBLE))
+                DataType arg_type = parse_expression();
+                if (arg >= symbol->param_sizes[p])
                 {
                     printError(ERR_SEM_ARG);
                 }
-                gen_instr("INT2FLOATS", NULL, NULL, NULL); /* Int argument pro parametr Double */
+                DataType expected = symbol->param_types[p][arg];
+                if (expected != TYPE_ANY && arg_type != expected)
+                {
+                    if (!(arg_type == TYPE_INT && expected == TYPE_DOUBLE))
+                    {
+                        printError(ERR_SEM_ARG);
+                    }
+                    gen_instr("INT2FLOATS", NULL, NULL, NULL); /* Int argument pro parametr Double */
+                }
+                arg++;
+                total++;
+
+                if (current_token.type == TOKEN_CARKA)
+                {
+                    match(TOKEN_CARKA);
+                }
+                else
+                {
+                    break;
+                }
             }
-            arg++;
-            if (current_token.type == TOKEN_CARKA)
+
+            match(TOKEN_PZAVORKA);
+
+            if (arg != symbol->param_sizes[p])
             {
-                match(TOKEN_CARKA);
-            }
-            else
-            {
-                break;
+                printError(ERR_SEM_ARG);
             }
         }
-        match(TOKEN_PZAVORKA);
+
+        if (current_token.type == TOKEN_LZAVORKA)
+        {
+            printError(ERR_SEM_ARG);
+        }
     }
-    else if (current_token.type == TOKEN_LZAVORKA)
+    else
     {
-        printError(ERR_SEM_ARG); /* bezparametrická metoda se volá bez závorek */
+        if (current_token.type == TOKEN_LZAVORKA)
+        {
+            printError(ERR_SEM_ARG); /* bezparametrická metoda se volá bez závorek */
+        }
+
+        if (symbol->param_count != 1 || symbol->param_sizes[0] != 1)
+        {
+            printError(ERR_SEM_ARG);
+        }
+        total = 1;
     }
 
-    if (arg != symbol->param_sizes[0])
-    {
-        printError(ERR_SEM_ARG);
-    }
-
-    gen_call(full_name, (size_t)arg);
+    gen_call(full_name, (size_t)total);
     gen_push_retval();
     return symbol->data_type;
 }
