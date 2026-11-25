@@ -158,6 +158,7 @@ static int zavorky = 0;
 static int odsazeni = 0;
 static int kontrola = 0;
 static int po_kom = 0;
+static int po_carce = 0;
 
 void scanner_reset()
 {
@@ -169,6 +170,7 @@ void scanner_reset()
     odsazeni = 0;
     kontrola = 0;
     po_kom = 0;
+    po_carce = 0;
 }
 
 /* INTERPOLATEDS: přidá hotový token do dynamického pole (pole přebírá vlastnictví t.string) */
@@ -502,10 +504,21 @@ int get_next_token(Token *token)
             // jen white space
             if (zavorky > 0)
             {
+                int byl_po_carce = po_carce;
+                po_carce = 0;
                 space = 0;
                 tab = 0;
                 zacatek = 1;
                 kontrola = 1;
+
+                if (byl_po_carce)
+                {
+                    letter = 0;
+                    token->type = TOKEN_EOL;
+                    token->line = current_line;
+                    return ERR_OK;
+                }
+
                 continue;
             }
 
@@ -529,6 +542,10 @@ int get_next_token(Token *token)
         }
 
         zacatek = 0;
+        if (c != ',')
+        {
+            po_carce = 0;
+        }
 
         if (c == '/')
         {
@@ -1079,6 +1096,10 @@ int get_next_token(Token *token)
         }
         if (c == ',')
         {
+            if (zavorky > 0)
+            {
+                po_carce = 1;
+            }
             token->type = TOKEN_CARKA;
             token->line = current_line;
             return ERR_OK;

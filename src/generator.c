@@ -824,6 +824,7 @@ static void builtin_toStr(void)
     gen_instr("TYPE", "LF@$t", "LF@$p0", NULL);
     gen_instr("JUMPIFEQ", "$toStr_int", "LF@$t", "string@int");
     gen_instr("JUMPIFEQ", "$toStr_float", "LF@$t", "string@float");
+    gen_instr("JUMPIFEQ", "$toStr_bool", "LF@$t", "string@bool");
 
     /* zbývá řetězec (včetně Unit, který je reprezentován jako string@()) */
     gen_instr("MOVE", "LF@$r", "LF@$p0", NULL);
@@ -835,6 +836,13 @@ static void builtin_toStr(void)
 
     gen_label("$toStr_float");
     gen_instr("FLOAT2STR", "LF@$r", "LF@$p0", NULL);
+
+    gen_label("$toStr_bool");
+    gen_instr("JUMPIFEQ", "$toStr_true", "LF@$p0", "bool@true");
+    gen_instr("MOVE", "LF@$r", "string@false", NULL);
+    gen_instr("JUMP", "$toStr_end", NULL, NULL);
+    gen_label("$toStr_true");
+    gen_instr("MOVE", "LF@$r", "string@true", NULL);
 
     gen_label("$toStr_end");
     gen_function_return("LF@$r");

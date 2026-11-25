@@ -223,9 +223,11 @@ static DataType parse_call(Token token_id)
 
         int arg = 0;
         int carka = 0;
+        bool eol_po_carce = false;
 
         while (current_token.type != TOKEN_PZAVORKA && current_token.type != TOKEN_EOF)
         {
+            eol_po_carce = false;
             DataType arg_type = parse_expression();
 
             if (arg < symbol->param_sizes[i])
@@ -252,9 +254,20 @@ static DataType parse_call(Token token_id)
                 if (current_token.type == TOKEN_EOL)
                 {
                     match(TOKEN_EOL);
+                    eol_po_carce = true;
+                }
+                if (current_token.type == TOKEN_ODSAZENI && token_index < tokens.count &&
+                    tokens.items[token_index].type == TOKEN_PZAVORKA)
+                {
+                    match(TOKEN_ODSAZENI);
                 }
                 if (current_token.type == TOKEN_PZAVORKA)
                 {
+                    if (!eol_po_carce)
+                    {
+                        printError(ERR_SYN);
+                    }
+
                     break;
                 }
             }
@@ -269,7 +282,8 @@ static DataType parse_call(Token token_id)
         if (arg != symbol->param_sizes[i])
             printError(ERR_SEM_ARG);
 
-        if (carka != arg - 1 && !(arg == 0 && carka == 0))
+        int carky = eol_po_carce ? arg : (arg - 1);
+        if (carka != carky && !(arg == 0 && carka == 0))
         {
             printError(ERR_SYN);
         }
@@ -834,7 +848,7 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             {
                 if (expected_return_type != TYPE_UNIT)
                 {
-                    printError(10);
+                    printError(ERR_SEM_TYPE);
                 }
                 last_type = TYPE_UNIT;
                 gen_function_return_unit(); // GEN: samostatný return
@@ -874,6 +888,9 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
         case TOKEN_INT_HOD:
         case TOKEN_DOUBLE_HOD:
         case TOKEN_STRING_HOD:
+        case TOKEN_TRUE_HOD:
+        case TOKEN_FALSE_HOD:
+        case TOKEN_NOT:
         case TOKEN_LZAVORKA:
             last_type = parse_value();
             if (current_token.type == TOKEN_EOL)
