@@ -250,20 +250,12 @@ static int scan_interpolated(Token *token)
         int c2 = read_char();
         if (c2 == '"')
         {
-            int c3 = read_char();
-            if (c3 == '"')
-            {
-                multi = 1; /* s""" začíná víceřádkový řetězec */
-            }
-            else
-            {
-                unread_char(c3, stdin);
-                closed = 1; /* s"" je prázdný řetězec */
-            }
+            multi = 1; /* s""" začíná víceřádkový řetězec */
         }
         else
         {
             unread_char(c2, stdin);
+            closed = 1; /* s"" je prázdný řetězec */
         }
     }
     else
