@@ -836,6 +836,7 @@ static void builtin_toStr(void)
 
     gen_label("$toStr_float");
     gen_instr("FLOAT2STR", "LF@$r", "LF@$p0", NULL);
+    gen_instr("JUMP", "$toStr_end", NULL, NULL);
 
     gen_label("$toStr_bool");
     gen_instr("JUMPIFEQ", "$toStr_true", "LF@$p0", "bool@true");

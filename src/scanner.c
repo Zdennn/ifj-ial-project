@@ -158,10 +158,13 @@ static int zavorky = 0;
 static int odsazeni = 0;
 static int kontrola = 0;
 static int po_kom = 0;
-static int po_carce = 0;
+static int nl_v_zavorce = 0; // od posledního tokenu byl v závorkách konec řádku
+static int nl_pred_tokenem = 0;
 
 void scanner_reset()
 {
+    nl_pred_tokenem = 0;
+    nl_v_zavorce = 0;
     letter = 0;
     space = 0;
     tab = 0;
@@ -170,7 +173,6 @@ void scanner_reset()
     odsazeni = 0;
     kontrola = 0;
     po_kom = 0;
-    po_carce = 0;
 }
 
 /* INTERPOLATEDS: přidá hotový token do dynamického pole (pole přebírá vlastnictví t.string) */
@@ -504,20 +506,11 @@ int get_next_token(Token *token)
             // jen white space
             if (zavorky > 0)
             {
-                int byl_po_carce = po_carce;
-                po_carce = 0;
                 space = 0;
                 tab = 0;
                 zacatek = 1;
                 kontrola = 1;
-
-                if (byl_po_carce)
-                {
-                    letter = 0;
-                    token->type = TOKEN_EOL;
-                    token->line = current_line;
-                    return ERR_OK;
-                }
+                nl_v_zavorce = 1;
 
                 continue;
             }
@@ -542,10 +535,8 @@ int get_next_token(Token *token)
         }
 
         zacatek = 0;
-        if (c != ',')
-        {
-            po_carce = 0;
-        }
+        nl_pred_tokenem = nl_v_zavorce;
+        nl_v_zavorce = 0;
 
         if (c == '/')
         {
@@ -1050,6 +1041,7 @@ int get_next_token(Token *token)
                 zavorky--;
             token->type = TOKEN_PZAVORKA;
             token->line = current_line;
+            token->int_val = nl_pred_tokenem; /* 1 = před ')' byl konec řádku */
             return ERR_OK;
         }
         if (c == ':')
@@ -1096,10 +1088,6 @@ int get_next_token(Token *token)
         }
         if (c == ',')
         {
-            if (zavorky > 0)
-            {
-                po_carce = 1;
-            }
             token->type = TOKEN_CARKA;
             token->line = current_line;
             return ERR_OK;

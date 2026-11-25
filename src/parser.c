@@ -223,11 +223,10 @@ static DataType parse_call(Token token_id)
 
         int arg = 0;
         int carka = 0;
-        bool eol_po_carce = false;
+        bool koncova_carka = false;
 
         while (current_token.type != TOKEN_PZAVORKA && current_token.type != TOKEN_EOF)
         {
-            eol_po_carce = false;
             DataType arg_type = parse_expression();
 
             if (arg < symbol->param_sizes[i])
@@ -251,23 +250,14 @@ static DataType parse_call(Token token_id)
                 match(TOKEN_CARKA);
                 carka++;
 
-                if (current_token.type == TOKEN_EOL)
-                {
-                    match(TOKEN_EOL);
-                    eol_po_carce = true;
-                }
-                if (current_token.type == TOKEN_ODSAZENI && token_index < tokens.count &&
-                    tokens.items[token_index].type == TOKEN_PZAVORKA)
-                {
-                    match(TOKEN_ODSAZENI);
-                }
                 if (current_token.type == TOKEN_PZAVORKA)
                 {
-                    if (!eol_po_carce)
+                    /* koncová čárka je povolená jen když ')' je na dalším řádku */
+                    if (!current_token.int_val)
                     {
                         printError(ERR_SYN);
                     }
-
+                    koncova_carka = true;
                     break;
                 }
             }
@@ -282,7 +272,7 @@ static DataType parse_call(Token token_id)
         if (arg != symbol->param_sizes[i])
             printError(ERR_SEM_ARG);
 
-        int carky = eol_po_carce ? arg : (arg - 1);
+        int carky = koncova_carka ? arg : (arg - 1);
         if (carka != carky && !(arg == 0 && carka == 0))
         {
             printError(ERR_SYN);
@@ -602,14 +592,14 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
     DataType last_type = TYPE_UNIT;
 
     int pocet_odsazeni = current_token.int_val;
-    bool novy_radek = 1;
+    bool po_stredniku = false;
 
     while (current_token.type != TOKEN_EOF)
     {
         if (current_token.type == TOKEN_EOL)
         {
             match(TOKEN_EOL);
-            novy_radek = 1;
+            po_stredniku = false;
             continue;
         }
         if (current_token.type == TOKEN_ODSAZENI)
@@ -628,17 +618,17 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
             {
                 // Pokracuje ve stejnem bloku
                 match(TOKEN_ODSAZENI);
-                novy_radek = 0;
+                po_stredniku = false;
             }
         }
         else
         {
-            if (pocet_odsazeni > 0 && novy_radek)
+            if (pocet_odsazeni > 0 && !po_stredniku)
             {
-                // Konec bloku, radek nezacina odsazenim, ale jsem v v odsazenem bloku
                 return last_type;
             }
-            novy_radek = 0;
+
+            po_stredniku = false;
         }
 
         Token token_id;
@@ -911,14 +901,10 @@ DataType parse_block(DataType expected_return_type, bool has_explicit_return)
 
         if (current_token.type == TOKEN_EOL || current_token.type == TOKEN_STREDNIK)
         {
-            bool eol = (current_token.type == TOKEN_EOL);
             bool strednik = (current_token.type == TOKEN_STREDNIK);
             match(current_token.type);
 
-            if (eol)
-            {
-                novy_radek = 1;
-            }
+            po_stredniku = strednik;
 
             if (strednik && current_token.type == TOKEN_STREDNIK)
             {
@@ -1374,13 +1360,12 @@ DataType *parse_parameters(int *out_param_count)
         {
             match(TOKEN_CARKA);
 
-            if (current_token.type == TOKEN_EOL)
-            {
-                match(TOKEN_EOL);
-            }
-
             if (current_token.type == TOKEN_PZAVORKA)
             {
+                if (!current_token.int_val)
+                {
+                    printError(ERR_SYN); /* koncová čárka na stejném řádku */
+                }
                 break;
             }
             else if (current_token.type != TOKEN_ID)
@@ -1537,7 +1522,7 @@ static DataType parse_ext_call(char *full_name, int parens)
         printError(ERR_SEM_UNDEF);
     }
 
-    int total = 0;
+    int total = 1;
 
     if (parens)
     {
@@ -1604,7 +1589,6 @@ static DataType parse_ext_call(char *full_name, int parens)
         {
             printError(ERR_SEM_ARG);
         }
-        total = 1;
     }
 
     gen_call(full_name, (size_t)total);
